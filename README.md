@@ -1,6 +1,7 @@
 # Offscroll
 
-A minimal Python experiment for a future weekly curated digest. This probe asks
+A minimal Python project with a YouTube probe and PostgreSQL infrastructure for
+a future weekly curated digest. The probe asks
 whether YouTube's `videos.list` endpoint with `chart=mostPopular` supplies useful
 candidates and the metadata needed to link to them and inspect embedding status.
 It is not the digest application.
@@ -48,11 +49,12 @@ request URLs, and keys. There is no media downloading, scraping, or data storage
 ## Tests
 
 ```bash
-python -m pytest -q
+make test
 ```
 
-Tests replace HTTP calls with mocked responses and use a fake key. They do not
-need `.env` or make live API calls.
+Unit tests mock HTTP calls and block database connections. They do not need `.env`,
+PostgreSQL, or live API calls. The separate integration test requires a migrated
+database and skips when `DATABASE_URL` is unset.
 
 ## Development
 
@@ -63,11 +65,15 @@ if you use a different environment.
 | Target | Purpose |
 | --- | --- |
 | `make install` | Install the package in editable mode with development dependencies. |
-| `make lint` | Run Ruff checks on `src/`, `scripts/`, and `tests/`. |
+| `make lint` | Run Ruff checks on `src/`, `scripts/`, `tests/`, and `migrations/`. |
 | `make format` | Format Python files in those directories with Ruff. |
 | `make typecheck` | Run strict mypy checks on `src/`. |
 | `make test` | Run the offline pytest suite. |
 | `make check` | Run lint, type checking, and tests. |
+| `make db-up` | Start PostgreSQL and wait for its healthcheck. |
+| `make db-down` | Stop PostgreSQL while preserving its named volume. |
+| `make migrate` | Apply Alembic migrations through the latest revision. |
+| `make test-integration` | Check the migrated PostgreSQL schema. |
 
 Ruff provides linting, import ordering, and formatting; mypy catches type errors.
 Both are development-only dependencies. Stricter checks add feedback without
@@ -76,19 +82,84 @@ does not rewrite them.
 Run `make check` before submitting changes. Working rules are in [AGENTS.md](AGENTS.md),
 and decision records use the [template](docs/decisions/0000-template.md).
 
+## Local PostgreSQL
+
+Install Docker Engine and the Docker Compose plugin, then run `make install` to
+install the database dependencies. The image is pinned to `postgres:18.7-bookworm`.
+It binds port 5432 to `127.0.0.1` and stores data in a named volume mounted at
+`/var/lib/postgresql`, as required by the PostgreSQL 18+ image layout. `PGDATA` is
+not overridden. See the [official image documentation](https://hub.docker.com/_/postgres).
+
+Database settings and Make targets use **exported environment variables only**.
+They do not load `.env`; Compose explicitly uses `--env-file /dev/null`.
+`.env.example` documents the required names with placeholders. Set the values
+locally; these Bash prompts keep the password and URL out of shell history:
+
+```bash
+export POSTGRES_USER=offscroll
+export POSTGRES_DB=offscroll
+read -rsp 'PostgreSQL password: ' POSTGRES_PASSWORD
+printf '\n'
+export POSTGRES_PASSWORD
+read -rsp 'Database URL: ' DATABASE_URL
+printf '\n'
+export DATABASE_URL
+
+make db-up
+make migrate
+make test-integration
+make db-down
+```
+
+The URL format is `postgresql+psycopg://USER:PASSWORD@127.0.0.1:5432/DATABASE`.
+Its credentials and database must match the `POSTGRES_*` variables. Percent-encode
+special characters in URL credentials. If host port 5432 is occupied, export
+`POSTGRES_PORT=55432` and use that port in `DATABASE_URL`. Query parameters are
+currently rejected so credentials cannot leak through SQLAlchemy's unmasked URL
+query representation.
+Do not print settings, connection errors, or resolved Compose configuration when
+diagnosing credentials; the provided settings mask secrets and migration errors
+use fixed messages.
+
+The first migration, `0001`, creates `raw`, `core`, and `marts`, plus
+`raw.ingest_runs`: an identity primary key, source, timezone-aware start/finish
+timestamps, status, fetched item count, and optional error summary. The database
+also stores Alembic's revision marker. There are no collectors or ingestion jobs
+yet. Future writers must sanitize error summaries before storing them.
+
+`make migrate` is safe to repeat after a successful upgrade. Downgrading `0001`
+would delete the run log and remove the schemas; it refuses to cascade through
+unrelated objects. `make db-down` preserves data. PostgreSQL's initialization
+variables only set credentials on the first start with an empty volume; changing
+them later does not update an existing database password.
+
+Pydantic-settings validates environment configuration; SQLAlchemy provides engine
+and session factories; psycopg 3 connects to PostgreSQL; Alembic versions the
+schema. Factories do not connect at import time. Engines hide SQL parameters and
+disable SQL echo. Keeping synchronous factories and handwritten migrations makes
+this foundation easier to explain, while advanced connection options and model
+autogeneration remain future work.
+
+On pushes and pull requests, [CI](.github/workflows/ci.yml) runs `make check`,
+then applies migrations and runs the integration test against a disposable
+PostgreSQL service. Its public placeholder credentials require no CI secrets.
+
 ## Structure and decisions
 
 - `src/offscroll/youtube.py`: one request function, a small `Video` dataclass, and
   response validation with safe errors. Configuration is passed explicitly.
 - `scripts/probe_youtube.py`: argument parsing, dotenv loading, and readable output.
-- `tests/`: offline tests for request parameters, output, and failure handling.
+- `src/offscroll/config.py` and `db.py`: environment settings and database factories.
+- `migrations/`: handwritten Alembic schema changes.
+- `tests/`: offline unit tests and one marked database integration test.
 - `pyproject.toml`: setuptools editable installation; `httpx` and `python-dotenv`
-  at runtime, `pytest`, Ruff, and mypy in the optional `dev` dependencies.
+  plus the database dependencies at runtime; pytest, Ruff, and mypy in `dev`.
 
 The `src/` layout requires installing the package rather than modifying Python's
 import path. Only fields used by the probe are retained in memory. Embeddable
 `false` stays `false`; missing metadata fails clearly rather than being guessed.
-No web framework, database, scheduler, frontend, or AI integration is included.
+PostgreSQL infrastructure is included; web framework, scheduler, frontend, and AI
+integrations remain outside the current milestone.
 
 ## What this experiment can establish
 
