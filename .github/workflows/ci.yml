@@ -1,0 +1,47 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.7-bookworm
+        env:
+          POSTGRES_USER: offscroll_ci
+          POSTGRES_DB: offscroll_ci
+          # Public placeholder for this disposable CI database, not a stored secret.
+          POSTGRES_PASSWORD: ci_placeholder_password
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U offscroll_ci -d offscroll_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m venv .venv
+          make install
+      - name: Lint, typecheck, and unit tests
+        run: make check
+      - name: Apply migrations and run integration test
+        env:
+          DATABASE_URL: postgresql+psycopg://offscroll_ci:ci_placeholder_password@127.0.0.1:5432/offscroll_ci
+        run: |
+          make migrate
+          make test-integration
