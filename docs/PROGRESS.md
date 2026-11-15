@@ -1,6 +1,6 @@
 # Offscroll progress
 
-Last resume check: 2026-11-15 (Asia/Tashkent).
+Last resume check: 2026-11-15 (Asia/Tashkent). M3 authorized by owner `continue`.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's embedded date is preserved verbatim; use the date above for this resume check.
 
@@ -23,11 +23,11 @@ The brief's embedded date is preserved verbatim; use the date above for this res
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
 No historical completion tags existed at this resume check. Do not fabricate them.
-Do not begin M3 until M2 closeout is complete and the owner says `continue`.
+The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m2-hackernews`, based on main's M1 merge `5f69540`.
+- Current branch: `m3-sources`, based on main's M2 merge `b9c906d`.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
 - Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`; do not edit applied migrations.
 - Python minor: 3.14, shared by `.python-version`, package metadata, tooling, and CI.
@@ -58,14 +58,29 @@ Do not begin M3 until M2 closeout is complete and the owner says `continue`.
 
 ## Open questions / owner actions
 
-1. **Before M3 live acceptance:** arrange YouTube credentials via exported environment
-   variables without reading `.env`; owner must provide access when needed.
+1. **M3 live acceptance:** owner chose to run final acceptance commands locally with
+   the API key exported. No key is exported to the agent; do not read `.env`.
 2. **Before M4 YouTube scoring:** resolve the derived-metrics policy concern in ADR 0001.
    Hiding a computed metric from display does not by itself establish permission to compute it.
 3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
 4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
 
-## Last task report
+## M3 work in progress
+
+- Created `m3-sources` from merged main; no pushes.
+- Added migration `0003` for source policies, YouTube channel cache (including
+  refresh time for retention), and durable daily quota counters. Applied migrations
+  `0001` and `0002` remain unchanged.
+- Added Wikipedia fetch/parse and shared bounded HTTP handling; ADR 0005 explains
+  windows, incomplete data, rate limits, and licensing.
+- First slice validation: `make check` passed (92 unit tests); migrations applied
+  and all 8 integration tests passed in a disposable PostgreSQL 18.7 database.
+  Review risks: incomplete article histories are rejected, quota must be durable,
+  and retention needs a refresh timestamp; the latter is included in `0003`.
+- Next: curated YouTube collection, durable quota reservation, retention,
+  run-all/status/check-data, and tests. M3 is not complete or tagged.
+
+## Previous milestone report (M2)
 
 M2 closeout completed locally on 2026-11-15. Saved the brief verbatim, added progress
 and learning docs plus three ADRs, added a contact-bearing HN User-Agent, and added

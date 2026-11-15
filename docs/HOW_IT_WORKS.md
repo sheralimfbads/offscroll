@@ -67,3 +67,12 @@ repeatable checks. Smoke writes real data; use a disposable database for experim
 See ADRs [0002](decisions/0002-hackernews-ingestion.md),
 [0003](decisions/0003-run-transactions.md), and [0004](decisions/0004-runtime-and-ci.md)
 for the limits and alternatives behind these choices.
+
+## M3: More sources and operational checks (in progress)
+
+Wikipedia starts with seven daily top lists, then measures 35 days for each of
+60 candidates. This separates candidate discovery from measurement: absence from
+a top list does not mean zero views. The last seven measured days become snapshot
+views; the preceding 28 form the baseline. Incomplete series are rejected.
+See [ADR 0005](decisions/0005-wikipedia.md). The remaining M3 walkthrough will be
+completed with the YouTube, quota, retention, and data-quality slice.
