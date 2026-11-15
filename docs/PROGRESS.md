@@ -1,6 +1,6 @@
 # Offscroll progress
 
-Last resume check: 2026-11-15 (Asia/Tashkent). M3 authorized by owner `continue`.
+Last resume check: 2026-11-15 (Asia/Tashkent). M3 live acceptance passed; milestone closed locally.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's embedded date is preserved verbatim; use the date above for this resume check.
 
@@ -18,15 +18,16 @@ The brief's embedded date is preserved verbatim; use the date above for this res
   - [x] Re-run local checks and integration tests for the closeout changes.
   - [x] Resolve disposable CI test credentials through the owner's delegated decision (ADR 0004).
   - [x] Commit locally and tag `m2-done`; milestone report is the stop boundary.
-- [ ] M3: Wikipedia, curated-channel YouTube, quota/retention, run-all, status, and data checks.
+- [x] M3: Wikipedia, curated-channel YouTube, quota/retention, run-all, status, and data checks.
   - [x] Migration `0003`, Wikipedia connector and complete-series validation.
   - [x] Curated YouTube connector, safe YAML config, masked/header credentials, durable quota.
   - [x] Expire raw data and individual YouTube snapshots, stale items, and channel cache.
   - [x] `run-all`, `status`, `check-data`, source enablement, and manual source smoke commands.
   - [x] Offline HTTP tests and PostgreSQL integration coverage; migration downgrade/upgrade.
   - [x] Finish two public-source live checks and record final review/commits.
-  - [ ] Owner: run all three sources twice with YouTube credentials; show status/check-data.
-  - [ ] Owner: push for fresh CI. Tag `m3-done` only after full live acceptance passes.
+  - [x] Owner: run all three sources twice with YouTube credentials; show status/check-data.
+  - [x] Record acceptance, rerun local checks, commit closeout, and tag `m3-done`.
+  - [ ] Owner: push branch/tag for fresh CI and merge; automation never pushes.
 - [ ] M4: Ranking, corroboration, persisted digests, and summaries.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
@@ -68,108 +69,92 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Open questions / owner actions
 
-1. **M3 live acceptance:** owner chose to run final acceptance commands locally with
-   the API key exported. No key is exported to the agent; do not read `.env`.
+1. **M3 acceptance passed:** owner supplied successful live results for runs 10–15.
+   No API key was shared with the agent. Owner pushes the completed branch/tag for fresh CI.
 2. **Before M4 YouTube scoring:** resolve the derived-metrics policy concern in ADR 0001.
    Hiding a computed metric from display does not by itself establish permission to compute it.
 3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
 4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
 
-## Current task report: M3 implemented, owner live acceptance pending
+## Current milestone report: M3 complete locally
 
-### Owner acceptance failure investigation (2026-11-15)
+Owner-provided live output on 2026-11-15 establishes two successful `run-all`
+executions, successful `status` for all three sources, and a final `check-data` pass.
+These are owner-run results, not additional live requests made by the agent.
 
-- Owner reports HN/Wikipedia succeeded but YouTube failed in runs 4, 7, and 8,
-  consuming 23, 12, and 12 units respectively. Acceptance has **not** passed.
-- Read-only inspection of the owner's PostgreSQL cache showed the first eleven
-  configured handles and the generic `source_error` records. No credentials or
-  raw payloads were read, no data was changed, and no live YouTube requests were made.
-- The request counts and cache localize the likely failure to the twelfth handle,
-  `@pbseons`. Regression tests reproduce cold/warm-cache counts for an unresolved
-  twelfth handle. The original API response was discarded, so the exact cause remains
-  inferred rather than proven.
-- Changed the Eons candidate to `@eons` using PBS's published `youtube.com/eons`
-  address as evidence; live handle verification remains pending. ADR 0006 records
-  the source and qualification.
-- Added safe, structured YouTube errors: fixed labels, resource, YAML position,
-  numeric HTTP status. Persist them through rollback and print them in run summaries.
-  Raw exceptions, response text, URLs, keys, and headers remain excluded.
-- Validation: `make check` passed (118 unit tests, strict mypy for 15 source files,
-  Ruff clean). `make test-integration`: 15 passed, 118 deselected in 1.28s, using a
-  separate disposable database that was removed afterward. The owner's database
-  was only read for diagnosis. Diff review passed; no push or milestone tag.
-- Review risks: actual YouTube resolution is still unverified; another later channel
-  may also be invalid; failed runs deliberately discard raw data, so diagnostics
-  remain selective. No dependency, schema, retry, or acceptance changes were made.
-- Next owner action: run only `offscroll run youtube` once with the new changes.
-  Share its safe summary if it fails. On success, repeat the two full acceptance runs.
+| Source | First run | Second run | Fetched per run | Upserted per run | Rejected per run |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hacker News | 10 | 13 | 614 | 614 | 0 |
+| Wikipedia | 11 | 14 | 6,961 | 57 | 3 |
+| YouTube | 12 | 15 | 98 | 98 | 0 |
 
-### Original M3 implementation evidence
+All six runs succeeded. Both `run-all` calls ended with `check=passed`; the separate
+`check-data` command also passed. Wikipedia's fetched count includes discovery-list
+entries; the three incomplete daily series were rejected rather than filled with
+invented counts. Each YouTube run reserved 27 units using the channel cache.
 
-- Created `m3-sources` from merged main; no pushes.
-- Added migration `0003` for source policies, YouTube channel cache (including
-  refresh time for retention), and durable daily quota counters. Applied migrations
-  `0001` and `0002` remain unchanged.
-- Added Wikipedia fetch/parse and shared bounded HTTP handling; ADR 0005 explains
-  windows, incomplete data, rate limits, and licensing.
-- First slice validation: `make check` passed (92 unit tests); migrations applied
-  and all 8 integration tests passed in a disposable PostgreSQL 18.7 database.
-  Review risks: incomplete article histories are rejected, quota must be durable,
-  and retention needs a refresh timestamp; the latter is included in `0003`.
-- Added curated YouTube collection, durable quota reservation, retention,
-  run-all/status/check-data, and their tests. M3 is not complete or tagged.
-- Added ADRs 0006/0007, README owner acceptance instructions, and the M3 learning walkthrough.
-- `make check`: Ruff passed, mypy passed for 15 source files, 114 unit tests passed.
-  PostgreSQL integration: 14 passed. Verified `0003 -> 0002 -> 0003` in a fresh
-  disposable database. No existing database was altered by validation.
-- A final validation initially exposed a unit test assuming the default enabled
-  sources despite an exported override. Fixed the test by clearing that variable
-  for its default-settings assertion; no checks or lint rules were weakened.
-- Public-source live validation passed twice. Each run: HN 611 fetched/upserted,
-  zero rejected; Wikipedia 6,961 fetched entries, 57 topics upserted, three incomplete
-  histories rejected; data checks passed. Wikipedia fetched counts include valid
-  top-list candidate entries plus per-article series, not unique topic counts.
-- Final SQL-backed `status`: HN 611 items / 1,222 snapshots / 2 raw responses;
-  Wikipedia 57 items / 114 snapshots / 134 raw responses. Both latest runs succeeded;
-  a separate `check-data` also passed. The temporary database/volume were removed.
-- The owner will perform YouTube live acceptance locally. No API key was accessed,
-  `.env` was never read, no push, and no completion tag yet.
+Final owner-provided `status` (cumulative database history, not just these two runs):
 
-Final check output:
+| Source | Items | Snapshots | Raw responses | Daily quota units |
+| --- | ---: | ---: | ---: | ---: |
+| Hacker News | 634 | 3,076 | 5 | 0 |
+| Wikipedia | 57 | 228 | 268 | 0 |
+| YouTube | 98 | 294 | 95 | 142 |
 
-```text
-make check
-All checks passed!
-Success: no issues found in 15 source files
-114 passed, 14 deselected in 0.44s
+YouTube's 294 snapshots equal 98 videos across standalone successful run 9 and
+acceptance runs 12/15. Its daily total includes earlier failed requests as intended.
+No reset of the owner's database or quota counters was necessary.
 
-make test-integration
-14 passed, 114 deselected in 1.27s
-```
+### Implementation and debugging evidence
 
-Review: checked the full intended diff, new source modules, secret-safe settings and
-endpoints, quota reservation boundary, independent snapshot expiry, rollback behavior,
-and owner acceptance instructions. Older migrations and CI/lint configuration are
-unchanged. Unit tests still block live HTTP and DB connections; integration HTTP is
-mocked. Synthetic fixtures and explicit file staging keep unrelated files out of commits.
+- Branch `m3-sources` starts at main's M2 merge `b9c906d`; implementation commits
+  are `7bd1e54`, `b78b129`, and `72032f5`.
+- Migration `0003` adds source policies, channel cache with retention timestamp,
+  and durable quota counters. Earlier migrations are unchanged. Its downgrade to
+  `0002` and upgrade back to `0003` passed in a disposable database.
+- Wikipedia selects candidates from seven completed daily top lists, then measures
+  complete 35-day series. YouTube resolves curated handles, reuses uploads playlists,
+  batches video requests, and reserves quota before each attempt.
+- `run-all`, `status`, `check-data`, source enablement, safe diagnostics, and independent
+  raw/core retention are implemented. ADRs 0005–0007 record their trade-offs.
+- Earlier owner YouTube attempts failed after 23, 12, and 12 units. A read-only cache
+  inspection found the first eleven configured handles, implicating the twelfth,
+  `@pbseons`. Mocks reproduce that pattern. The original discarded response cannot
+  prove its exact reason. Changing the candidate to `@eons` was followed by successful
+  live collection (run 9: 98 videos, 41 units), then the full acceptance above.
+- Diagnostics now retain code-owned error labels, resource, YAML position, and numeric
+  HTTP status through rollback. Remote messages, URLs, headers, and secrets stay out.
+- Prior agent live checks independently passed twice for public HN/Wikipedia only,
+  ending with 611 HN items/1,222 snapshots and 57 Wikipedia topics/114 snapshots in
+  a disposable database. Those historical counts are separate from the owner's data.
+
+### Closeout checks and review
+
+`make check`: Ruff passed; strict mypy passed for 15 source files;
+118 unit tests passed, 15 integration tests deselected (0.47s).
+`make test-integration`: 15 passed, 118 deselected (1.43s).
+The database check used a separate disposable container/volume and mocked HTTP;
+both were cleaned up afterward. No `.env` or API key was read, and the owner's
+database was not mutated during closeout.
+
+Reviewed documentation against the supplied logs, preserving the distinction between
+owner live evidence and agent tests. This closeout changes documentation only;
+no runtime, schema, dependency, CI, or lint configuration changes.
 
 Top three remaining risks:
 
-1. YouTube authorization and all curated handle identities/availability remain
-   unverified live; owner must complete the README's three-source acceptance before
-   M3 is considered done. Editorial selection and upload caps also limit coverage.
-2. Retention cannot run during extended downtime. Configure a daily purge and backup
-   lifecycle before unattended YouTube collection; automatic pre-run purging alone
-   does not guarantee a deadline while the application is stopped.
-3. Quota accounting covers this database's collectors only. Other tools sharing the
-   Google project consume quota invisibly; use the provider's console as authority.
-   Channel-cache updates assume a single collector; quota increments themselves are atomic.
+1. Editorial channel selection, upload caps, and rejection of incomplete Wikipedia
+   history limit coverage. Successful collection does not establish factual truth.
+2. Purging cannot run while the application is stopped. Schedule a daily purge and
+   matching backup retention before unattended YouTube collection.
+3. Quota counters cover collectors sharing this database; external tools can consume
+   the same Google project's quota. Cache updates assume a single collector.
 
-Next owner step: follow **Owner-run M3 live acceptance** in README (two `run-all`
-commands, `status`, `check-data` with all three sources enabled). Share only safe
-summaries. Owner pushes for fresh CI. Resume M3 acceptance after that evidence;
-do not start M4 or create `m3-done` yet. No new owner decision is required for the
-already-completed implementation.
+With exported settings, inspect the result using `offscroll status` and
+`offscroll check-data`; collect again with `offscroll run-all` when appropriate.
+Local completion tag: `m3-done`. The owner pushes and merges; fresh CI is still
+pending, not claimed green for the closeout commit. Stop here until owner `continue`.
+Before M4 scoring, resolve the YouTube derived-metrics concern recorded in ADR 0001.
 
 ## Previous milestone report (M2)
 

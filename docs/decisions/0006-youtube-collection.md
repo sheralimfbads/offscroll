@@ -23,7 +23,8 @@ checked on 2026-11-15:
 ## Decision
 
 Use an editable YAML list of 25 candidate handles covering five categories.
-Their live availability and identities remain unverified until owner-run acceptance.
+API resolution and collection were confirmed by owner-run acceptance on 2026-11-15;
+editorial suitability and future availability still require review.
 Resolve active handles through the API, cache channel ID/title/uploads playlist,
 and refresh mappings at least daily when collected. Removed/disabled entries are
 marked inactive. Store cache refresh time so retention can delete old entries.
@@ -84,3 +85,9 @@ code-owned error label, resource name, one-based YAML channel position, and nume
 HTTP status when available. Never include raw exception strings, remote error
 messages, URLs, headers, configuration handles, or keys. This adds actionable
 context without changing retries, skipping failing channels, or weakening acceptance.
+
+Acceptance outcome, 2026-11-15: after the `@eons` change, owner run 9 succeeded
+with 98 videos and no rejections. Full runs 12 and 15 each collected the same 98
+videos using 27 units; all three sources and data checks passed in both `run-all`
+executions. This resolves the pending live collection check above. It does not
+recover the original failed response or guarantee future handle availability.

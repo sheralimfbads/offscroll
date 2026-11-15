@@ -1,6 +1,6 @@
 # Editorial starting list, not an endorsement or a general trending sample.
 # Handles are resolved and validated by channels.list; owner may edit/disable entries.
-# Live identity/availability validation is part of owner-run M3 acceptance.
+# API resolution/collection passed owner-run M3 acceptance on 2026-11-15; review changes.
 channels:
   - {handle: "@veritasium", category: science, active: true}
   - {handle: "@kurzgesagt", category: science, active: true}
@@ -13,7 +13,7 @@ channels:
   - {handle: "@TechnologyConnections", category: technology, active: true}
   - {handle: "@standupmaths", category: science, active: true}
   - {handle: "@pbsspacetime", category: science, active: true}
-  # PBS identifies the channel as youtube.com/eons; confirm handle via owner-run API acceptance.
+  # PBS identifies the channel as youtube.com/eons; owner-run API collection succeeded.
   - {handle: "@eons", category: science, active: true}
   - {handle: "@PracticalEngineeringChannel", category: technology, active: true}
   - {handle: "@RealEngineering", category: technology, active: true}

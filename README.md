@@ -294,7 +294,8 @@ See [ADR 0005](docs/decisions/0005-wikipedia.md).
 
 YouTube uses [config/youtube_channels.yaml](config/youtube_channels.yaml), or the
 path in `YOUTUBE_CHANNELS_FILE`. These 25 handles are an editable editorial starting
-list; live availability/identity still needs owner validation. Resolve handles via
+list. Owner-run live collection passed on 2026-11-15; review channel choices as they
+change. Resolve handles via
 `channels.list`, cache uploads playlists with a daily refresh, fetch ten uploads per
 active channel, keep the last fourteen days, and query `videos.list` in batches of
 fifty. No search, scraping, media downloads, or derived ranking metrics are used.
@@ -341,8 +342,11 @@ unset YOUTUBE_API_KEY
 Expect three successful sources on each run, nonzero item counts, and `check=passed`.
 Snapshots should grow while item identities are reused; new live stories can make
 item counts grow too. Share only command summaries, never keys or connection URLs.
-The agent's mocked tests and public-source checks do not establish YouTube live
-authorization or channel validity. M3 stays untagged until full acceptance passes.
+The owner completed this acceptance on 2026-11-15: both full runs succeeded for all
+three sources, each upserting 614 HN stories, 57 Wikipedia topics, and 98 YouTube
+videos. The final data checks passed. See [PROGRESS.md](docs/PROGRESS.md) for run IDs,
+accumulated counts, and remaining operational risks. Mocks alone cannot establish
+live authorization, and future data/counts can change.
 
 For a YouTube failure, retry only `.venv/bin/offscroll run youtube` after addressing
 the reported issue. Diagnostics include a safe error code, API resource name,

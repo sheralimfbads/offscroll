@@ -70,7 +70,10 @@ for the limits and alternatives behind these choices.
 
 ## M3: More sources, quota, retention, and quality
 
-Implementation walkthrough; final three-source live acceptance remains owner-run.
+Owner-run live acceptance passed on 2026-11-15: two full runs collected 614 HN
+stories, 57 Wikipedia topics, and 98 YouTube videos each; all final checks passed.
+YouTube retained 98 item identities with 294 snapshots across three successful
+runs. This illustrates identity reuse while recording new observations.
 
 ### Data flow
 
