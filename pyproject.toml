@@ -24,6 +24,9 @@ dev = [
     "mypy>=1.14,<2",  # Static type checking for the Python package.
 ]
 
+[project.scripts]
+offscroll = "offscroll.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
