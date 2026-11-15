@@ -1,10 +1,11 @@
 # Offscroll
 
-A small Python metadata pipeline with a Hacker News digest, a YouTube feasibility
-probe, and PostgreSQL storage. The YouTube probe asks
+A small Python metadata pipeline collecting Hacker News, Wikipedia pageviews, and
+curated YouTube metadata into PostgreSQL, with a simple Hacker News digest.
+Cross-source ranking and delivery come in later milestones. The separate YouTube probe asks
 whether YouTube's `videos.list` endpoint with `chart=mostPopular` supplies useful
 candidates and the metadata needed to link to them and inspect embedding status.
-It is not the digest application.
+It remains a standalone feasibility experiment.
 
 ## Setup (Ubuntu/Linux)
 
@@ -78,7 +79,7 @@ if you use a different environment.
 | `make db-down` | Stop PostgreSQL while preserving its named volume. |
 | `make migrate` | Apply Alembic migrations through the latest revision. |
 | `make test-integration` | Check migrations and pipeline behavior against PostgreSQL. |
-| `make smoke` | Manually ingest and transform one page from the live HN API. |
+| `make smoke` | Manual live HN check; use `SMOKE_SOURCE=wikipedia` or `youtube` for M3. |
 
 Ruff provides linting, import ordering, and formatting; mypy catches type errors.
 Both are development-only dependencies. Stricter checks add feedback without
@@ -238,7 +239,7 @@ command in this milestone; schedule it before unattended collection. Purged runs
 can no longer be replayed. Links point to originals; article pages are not scraped.
 
 To add a source, add one module under `src/offscroll/connectors/` exporting a
-`connector` that implements the small Protocol in `_base.py`, including its
+`connector` (or `create_connector(engine)` for database-backed setup) that implements the small Protocol in `_base.py`, including its
 retention rule. `fetch` performs I/O and returns raw pages; `parse` is a pure
 payload-to-records function. The module loader and common transform need no new
 registry entry. HN-specific digest selection remains deliberate for this milestone.
@@ -248,6 +249,100 @@ is blocked in all tests. Database integration tests cover two runs, replay,
 rejection counts, savepoint rollback, ordering, and purging. Run them against a
 dedicated test database: pipeline test writes and temporary cleanup are wrapped
 in an outer transaction that is rolled back, but can hold locks while running.
+
+## M3: Wikipedia, curated YouTube, and operational checks
+
+Run from the repository root after `make install` and exporting database settings.
+The pipeline uses exported environment variables only; it never loads `.env`.
+Migration `0003` adds the source policies, channel cache, and daily quota counters.
+
+```bash
+make db-up
+make migrate
+
+# Public sources can be exercised without YouTube credentials.
+export OFFSCROLL_SOURCES=hackernews,wikipedia
+.venv/bin/offscroll run-all
+.venv/bin/offscroll status
+.venv/bin/offscroll check-data
+
+# Single-source manual checks (live HTTP and database writes).
+make smoke SMOKE_SOURCE=wikipedia
+.venv/bin/offscroll run youtube
+
+# Network-free retention job, including expired YouTube core data.
+.venv/bin/offscroll purge-raw
+```
+
+`OFFSCROLL_SOURCES` defaults to `hackernews,wikipedia,youtube`. Every enabled source
+is attempted independently by `run-all`; one failed source does not skip the rest.
+It prints a summary table and always runs `check-data` afterward, exiting nonzero
+on either collection or quality failure. `status` reports last attempt, latest
+snapshot time (`data_at`), item/snapshot/raw counts, and quota usage. Checks require
+fresh data within 36 hours, nonempty items with snapshots, valid required fields,
+unique identities, sensible metrics, and no expired YouTube data. An empty source
+is treated as a problem to investigate, not silently declared healthy.
+
+Wikipedia selects up to 60 candidates from seven completed UTC daily top lists,
+excluding Main_Page and known non-article namespaces. It fetches 35 daily per-article
+counts for each candidate: the last seven give weekly views, the preceding 28 give
+the mean baseline. Incomplete series are rejected; a zero baseline gives a null
+spike ratio. `published_at` for topics is explicitly the observation-window end,
+not the article's creation date. API data is CC0; no article descriptions or images
+are collected. One-second spacing keeps requests serial and below current limits.
+See [ADR 0005](docs/decisions/0005-wikipedia.md).
+
+YouTube uses [config/youtube_channels.yaml](config/youtube_channels.yaml), or the
+path in `YOUTUBE_CHANNELS_FILE`. These 25 handles are an editable editorial starting
+list; live availability/identity still needs owner validation. Resolve handles via
+`channels.list`, cache uploads playlists with a daily refresh, fetch ten uploads per
+active channel, keep the last fourteen days, and query `videos.list` in batches of
+fifty. No search, scraping, media downloads, or derived ranking metrics are used.
+Thumbnail URLs are stored as returned, never downloaded. Missing metrics stay null.
+PyYAML safely loads configuration; its development stubs preserve strict typing.
+
+The key travels in `X-Goog-Api-Key`, not a URL. A separate atomic transaction reserves
+one unit before every HTTP attempt, including retries. The local guard stops before
+8,000 units per Pacific calendar day, survives failed runs, and logs attempted units.
+All collectors for the same API project must share this quota database; external
+tools' usage is not visible here. `quotaExceeded` is never retried. Run one collector
+at a time for predictable channel-cache updates. See [ADR 0006](docs/decisions/0006-youtube-collection.md).
+
+**Retention:** HN/Wikipedia raw responses expire after 90 days. YouTube raw responses,
+individual snapshots, stale item metadata, and cached channels expire within 30 days.
+A fresh item does not extend old snapshots' lifetime. Purging runs independently
+before `run-all`, YouTube collection, and replay, and through `purge-raw`.
+For unattended use, schedule the purge at least daily and apply matching backup
+retention; no external scheduler or backup lifecycle is configured yet. A stopped
+application cannot purge itself. See [ADR 0007](docs/decisions/0007-retention-and-quality.md).
+
+### Owner-run M3 live acceptance
+
+Use a dedicated local database. After exporting its settings and enabling YouTube
+Data API v3 for your key, enter the key locally without putting it in shell history:
+
+```bash
+read -rsp 'YouTube API key: ' YOUTUBE_API_KEY
+printf '\n'
+export YOUTUBE_API_KEY
+export OFFSCROLL_SOURCES=hackernews,wikipedia,youtube
+make install
+make db-up
+make migrate
+make check
+make test-integration
+.venv/bin/offscroll run-all
+.venv/bin/offscroll run-all
+.venv/bin/offscroll status
+.venv/bin/offscroll check-data
+unset YOUTUBE_API_KEY
+```
+
+Expect three successful sources on each run, nonzero item counts, and `check=passed`.
+Snapshots should grow while item identities are reused; new live stories can make
+item counts grow too. Share only command summaries, never keys or connection URLs.
+The agent's mocked tests and public-source checks do not establish YouTube live
+authorization or channel validity. M3 stays untagged until full acceptance passes.
 
 ## Structure and decisions
 
@@ -260,7 +355,8 @@ in an outer transaction that is rolled back, but can hold locks while running.
 - `migrations/`: handwritten Alembic schema changes.
 - `tests/`: offline unit tests and marked database integration tests.
 - `pyproject.toml`: setuptools editable installation; `httpx` and `python-dotenv`
-  plus the database dependencies at runtime; pytest, Ruff, and mypy in `dev`.
+  plus database dependencies and PyYAML at runtime; pytest, Ruff, mypy, and YAML
+  typing stubs in `dev`.
 
 The `src/` layout requires installing the package rather than modifying Python's
 import path. Only fields used by the probe are retained in memory. Embeddable

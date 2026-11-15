@@ -15,6 +15,7 @@ dependencies = [
     "SQLAlchemy>=2.0,<3",  # Manage database engines and sessions with the 2.x API.
     "psycopg[binary]>=3.2,<4",  # Connect to PostgreSQL without a local compiler setup.
     "alembic>=1.14,<2",  # Version and apply database schema migrations.
+    "PyYAML>=6.0.3,<7",  # Safely read the owner-editable curated channel configuration.
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,7 @@ dev = [
     "pytest>=8,<10",
     "ruff>=0.9,<1",  # Linting, import ordering, and formatting during development.
     "mypy>=1.14,<2",  # Static type checking for the Python package.
+    "types-PyYAML>=6,<7",  # Type-check YAML loading without suppressing mypy errors.
 ]
 
 [project.scripts]

@@ -1,0 +1,29 @@
+# Editorial starting list, not an endorsement or a general trending sample.
+# Handles are resolved and validated by channels.list; owner may edit/disable entries.
+# Live identity/availability validation is part of owner-run M3 acceptance.
+channels:
+  - {handle: "@veritasium", category: science, active: true}
+  - {handle: "@kurzgesagt", category: science, active: true}
+  - {handle: "@Vsauce", category: science, active: true}
+  - {handle: "@smartereveryday", category: science, active: true}
+  - {handle: "@3blue1brown", category: science, active: true}
+  - {handle: "@numberphile", category: science, active: true}
+  - {handle: "@Computerphile", category: technology, active: true}
+  - {handle: "@TomScottGo", category: culture, active: true}
+  - {handle: "@TechnologyConnections", category: technology, active: true}
+  - {handle: "@standupmaths", category: science, active: true}
+  - {handle: "@pbsspacetime", category: science, active: true}
+  - {handle: "@pbseons", category: science, active: true}
+  - {handle: "@PracticalEngineeringChannel", category: technology, active: true}
+  - {handle: "@RealEngineering", category: technology, active: true}
+  - {handle: "@minutephysics", category: science, active: true}
+  - {handle: "@physicsgirl", category: science, active: true}
+  - {handle: "@TED", category: culture, active: true}
+  - {handle: "@TEDEd", category: culture, active: true}
+  - {handle: "@DWDocumentary", category: world, active: true}
+  - {handle: "@BBCWorldService", category: world, active: true}
+  - {handle: "@TheEconomist", category: economics, active: true}
+  - {handle: "@FinancialTimes", category: economics, active: true}
+  - {handle: "@EconomicsExplained", category: economics, active: true}
+  - {handle: "@PolyMatter", category: world, active: true}
+  - {handle: "@Vox", category: culture, active: true}

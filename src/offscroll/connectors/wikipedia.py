@@ -160,7 +160,7 @@ class WikipediaConnector:
             if pages:
                 time.sleep(1)  # Serial requests, at most 60/minute before network latency.
             payload = request_json(client, BASE_URL + path)
-            pages.append(RawResponse(path, datetime.now(UTC), 200, payload))
+            pages.append(RawResponse(path, datetime.now(UTC), 200, payload, parse(payload).fetched))
             return payload
 
         totals: dict[str, int] = defaultdict(int)

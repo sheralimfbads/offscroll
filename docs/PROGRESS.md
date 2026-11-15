@@ -19,19 +19,29 @@ The brief's embedded date is preserved verbatim; use the date above for this res
   - [x] Resolve disposable CI test credentials through the owner's delegated decision (ADR 0004).
   - [x] Commit locally and tag `m2-done`; milestone report is the stop boundary.
 - [ ] M3: Wikipedia, curated-channel YouTube, quota/retention, run-all, status, and data checks.
+  - [x] Migration `0003`, Wikipedia connector and complete-series validation.
+  - [x] Curated YouTube connector, safe YAML config, masked/header credentials, durable quota.
+  - [x] Expire raw data and individual YouTube snapshots, stale items, and channel cache.
+  - [x] `run-all`, `status`, `check-data`, source enablement, and manual source smoke commands.
+  - [x] Offline HTTP tests and PostgreSQL integration coverage; migration downgrade/upgrade.
+  - [x] Finish two public-source live checks and record final review/commits.
+  - [ ] Owner: run all three sources twice with YouTube credentials; show status/check-data.
+  - [ ] Owner: push for fresh CI. Tag `m3-done` only after full live acceptance passes.
 - [ ] M4: Ranking, corroboration, persisted digests, and summaries.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
-No historical completion tags existed at this resume check. Do not fabricate them.
+At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
 The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
 - Current branch: `m3-sources`, based on main's M2 merge `b9c906d`.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
-- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`; do not edit applied migrations.
+- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`;
+  do not edit applied migrations.
 - Python minor: 3.14, shared by `.python-version`, package metadata, tooling, and CI.
-- Runtime dependencies are unchanged by M2.
+- Runtime dependencies were unchanged by M2. M3 adds PyYAML and development-only
+  types-PyYAML, justified in ADR 0006.
 - Original live validation used a disposable database that was removed afterward.
   Its counts are historical evidence, not a claim about the owner's current database.
 - New instructions prohibit pushes. The owner pushes and merges; do not push branches or tags.
@@ -65,7 +75,7 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
 4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
 
-## M3 work in progress
+## Current task report: M3 implemented, owner live acceptance pending
 
 - Created `m3-sources` from merged main; no pushes.
 - Added migration `0003` for source policies, YouTube channel cache (including
@@ -77,8 +87,60 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
   and all 8 integration tests passed in a disposable PostgreSQL 18.7 database.
   Review risks: incomplete article histories are rejected, quota must be durable,
   and retention needs a refresh timestamp; the latter is included in `0003`.
-- Next: curated YouTube collection, durable quota reservation, retention,
-  run-all/status/check-data, and tests. M3 is not complete or tagged.
+- Added curated YouTube collection, durable quota reservation, retention,
+  run-all/status/check-data, and their tests. M3 is not complete or tagged.
+- Added ADRs 0006/0007, README owner acceptance instructions, and the M3 learning walkthrough.
+- `make check`: Ruff passed, mypy passed for 15 source files, 114 unit tests passed.
+  PostgreSQL integration: 14 passed. Verified `0003 -> 0002 -> 0003` in a fresh
+  disposable database. No existing database was altered by validation.
+- A final validation initially exposed a unit test assuming the default enabled
+  sources despite an exported override. Fixed the test by clearing that variable
+  for its default-settings assertion; no checks or lint rules were weakened.
+- Public-source live validation passed twice. Each run: HN 611 fetched/upserted,
+  zero rejected; Wikipedia 6,961 fetched entries, 57 topics upserted, three incomplete
+  histories rejected; data checks passed. Wikipedia fetched counts include valid
+  top-list candidate entries plus per-article series, not unique topic counts.
+- Final SQL-backed `status`: HN 611 items / 1,222 snapshots / 2 raw responses;
+  Wikipedia 57 items / 114 snapshots / 134 raw responses. Both latest runs succeeded;
+  a separate `check-data` also passed. The temporary database/volume were removed.
+- The owner will perform YouTube live acceptance locally. No API key was accessed,
+  `.env` was never read, no push, and no completion tag yet.
+
+Final check output:
+
+```text
+make check
+All checks passed!
+Success: no issues found in 15 source files
+114 passed, 14 deselected in 0.44s
+
+make test-integration
+14 passed, 114 deselected in 1.27s
+```
+
+Review: checked the full intended diff, new source modules, secret-safe settings and
+endpoints, quota reservation boundary, independent snapshot expiry, rollback behavior,
+and owner acceptance instructions. Older migrations and CI/lint configuration are
+unchanged. Unit tests still block live HTTP and DB connections; integration HTTP is
+mocked. Synthetic fixtures and explicit file staging keep unrelated files out of commits.
+
+Top three remaining risks:
+
+1. YouTube authorization and all curated handle identities/availability remain
+   unverified live; owner must complete the README's three-source acceptance before
+   M3 is considered done. Editorial selection and upload caps also limit coverage.
+2. Retention cannot run during extended downtime. Configure a daily purge and backup
+   lifecycle before unattended YouTube collection; automatic pre-run purging alone
+   does not guarantee a deadline while the application is stopped.
+3. Quota accounting covers this database's collectors only. Other tools sharing the
+   Google project consume quota invisibly; use the provider's console as authority.
+   Channel-cache updates assume a single collector; quota increments themselves are atomic.
+
+Next owner step: follow **Owner-run M3 live acceptance** in README (two `run-all`
+commands, `status`, `check-data` with all three sources enabled). Share only safe
+summaries. Owner pushes for fresh CI. Resume M3 acceptance after that evidence;
+do not start M4 or create `m3-done` yet. No new owner decision is required for the
+already-completed implementation.
 
 ## Previous milestone report (M2)
 
