@@ -1,0 +1,33 @@
+{
+  "hits": [
+    {
+      "objectID": "1111",
+      "title": "Example engineering story",
+      "created_at_i": 1794528000,
+      "points": 70,
+      "num_comments": 12,
+      "url": "https://www.example.com/story",
+      "author": "example_author"
+    },
+    {
+      "objectID": "2222",
+      "title": "Ask HN: Example discussion",
+      "created_at_i": 1794528000,
+      "points": 50,
+      "num_comments": 12,
+      "url": null,
+      "author": null
+    },
+    {
+      "objectID": "3333",
+      "title": "Example engineering story",
+      "created_at_i": 1794528000,
+      "points": 5,
+      "num_comments": 12,
+      "url": "https://www.example.com/story",
+      "author": "example_author"
+    }
+  ],
+  "nbHits": 3,
+  "nbPages": 1
+}

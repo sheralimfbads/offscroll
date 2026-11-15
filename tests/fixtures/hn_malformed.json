@@ -1,0 +1,44 @@
+{
+  "hits": [
+    {
+      "objectID": "1111",
+      "title": "Example engineering story",
+      "created_at_i": 1794528000,
+      "points": 70,
+      "num_comments": 12,
+      "url": "https://www.example.com/story",
+      "author": "example_author"
+    },
+    null,
+    {},
+    {
+      "objectID": "1111",
+      "title": "Example engineering story",
+      "created_at_i": 1794528000,
+      "points": "many",
+      "num_comments": 12,
+      "url": "https://www.example.com/story",
+      "author": "example_author"
+    },
+    {
+      "objectID": "1111",
+      "title": "   ",
+      "created_at_i": 1794528000,
+      "points": 70,
+      "num_comments": 12,
+      "url": "https://www.example.com/story",
+      "author": "example_author"
+    },
+    {
+      "objectID": "1111",
+      "title": "Example engineering story",
+      "created_at_i": 1794528000,
+      "points": 70,
+      "num_comments": 12,
+      "url": "not a URL",
+      "author": "example_author"
+    }
+  ],
+  "nbHits": 6,
+  "nbPages": 1
+}
