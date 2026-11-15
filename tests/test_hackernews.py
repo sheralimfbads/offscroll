@@ -63,6 +63,7 @@ def test_request_params_agent_and_pagination(delays):
         assert request.url.params["hitsPerPage"] == "1000"
         assert "points>=40" in request.url.params["numericFilters"]
         assert request.headers["User-Agent"] == USER_AGENT
+        assert "https://github.com/sheralimfbads/offscroll/issues" in USER_AGENT
         return httpx.Response(200, json={"hits": [{}], "nbHits": 2, "nbPages": 2})
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:

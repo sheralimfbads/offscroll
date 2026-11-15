@@ -2,7 +2,7 @@ PYTHON ?= .venv/bin/python
 PYTHON_MINOR := $(shell cat .python-version)
 COMPOSE = docker compose --env-file /dev/null -f compose.yaml
 
-.PHONY: venv check-python install lint format typecheck test check db-up db-down migrate test-integration
+.PHONY: venv check-python install lint format typecheck test check db-up db-down migrate test-integration smoke
 
 venv:
 	python$(PYTHON_MINOR) -m venv .venv
@@ -38,3 +38,7 @@ migrate:
 
 test-integration:
 	$(PYTHON) -m pytest -q -m integration
+
+# Manual only: calls the public API and writes to the configured database.
+smoke: check-python
+	$(PYTHON) -m offscroll.cli run hackernews --page-cap 1

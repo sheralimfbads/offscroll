@@ -90,3 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         if engine is not None:
             engine.dispose()
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

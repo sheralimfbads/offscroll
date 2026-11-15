@@ -13,7 +13,7 @@ from offscroll.connectors._base import ConnectorError, ParseResult, RawResponse,
 
 logger = logging.getLogger(__name__)
 API_URL = "https://hn.algolia.com/api/v1/search_by_date"
-USER_AGENT = "Offscroll/0.1 (weekly digest portfolio project; metadata only)"
+USER_AGENT = "Offscroll/0.1 (weekly digest; +https://github.com/sheralimfbads/offscroll/issues)"
 
 
 class Hit(BaseModel):

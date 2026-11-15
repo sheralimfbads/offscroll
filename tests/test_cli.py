@@ -1,3 +1,6 @@
+import runpy
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -11,6 +14,16 @@ def test_help_needs_no_database(monkeypatch, capsys):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(SystemExit) as exc:
         main(["--help"])
+    assert exc.value.code == 0
+    assert "purge-raw" in capsys.readouterr().out
+
+
+def test_module_entry_point_needs_no_database_for_help(monkeypatch, capsys):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(sys, "argv", ["offscroll.cli", "--help"])
+    script = Path(__file__).resolve().parents[1] / "src" / "offscroll" / "cli.py"
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_path(str(script), run_name="__main__")
     assert exc.value.code == 0
     assert "purge-raw" in capsys.readouterr().out
 
