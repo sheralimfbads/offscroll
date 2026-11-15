@@ -78,6 +78,7 @@ if you use a different environment.
 | `make db-down` | Stop PostgreSQL while preserving its named volume. |
 | `make migrate` | Apply Alembic migrations through the latest revision. |
 | `make test-integration` | Check migrations and pipeline behavior against PostgreSQL. |
+| `make smoke` | Manually ingest and transform one page from the live HN API. |
 
 Ruff provides linting, import ordering, and formatting; mypy catches type errors.
 Both are development-only dependencies. Stricter checks add feedback without
@@ -85,6 +86,11 @@ adding runtime dependencies; `make format` edits source files, while `make check
 does not rewrite them.
 Run `make check` before submitting changes. Working rules are in [AGENTS.md](AGENTS.md),
 and decision records use the [template](docs/decisions/0000-template.md).
+
+The [project brief](docs/PROJECT_BRIEF.md) defines scope; [PROGRESS.md](docs/PROGRESS.md)
+records milestone status and open questions. Read [HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)
+for the learning walkthrough. The owner pushes and merges; automation stops after
+each milestone report until the owner says `continue`.
 
 ## Local PostgreSQL
 
@@ -148,6 +154,9 @@ autogeneration remain future work.
 On pushes and pull requests, [CI](.github/workflows/ci.yml) runs `make check`,
 then applies migrations and runs the integration test against a disposable
 PostgreSQL service. Its public placeholder credentials require no CI secrets.
+This disposable test fixture is the narrow exception documented in
+[ADR 0004](docs/decisions/0004-runtime-and-ci.md); real API and production credentials
+must use GitHub Actions secrets.
 
 ## Hacker News pipeline
 
@@ -165,6 +174,11 @@ offscroll transform                 # latest run that still has raw responses
 offscroll transform --run-id 123     # replace 123 with a logged run_id
 offscroll purge-raw
 ```
+
+For a bounded manual live check, run `make smoke` after migrating the database.
+It writes a real run and at most one page of API data; a truncation warning means
+more results exist beyond that cap. It never runs in CI. Tests remain offline
+for HTTP, including the PostgreSQL integration suite.
 
 ```mermaid
 flowchart LR

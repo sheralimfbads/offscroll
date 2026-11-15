@@ -41,3 +41,5 @@
 - Link out to originals instead of copying article text or images.
 - Never download videos, scrape YouTube, or store audiovisual files.
 - Never present unchecked claims as verified.
+
+Source of truth for scope and rules: docs/PROJECT_BRIEF.md
