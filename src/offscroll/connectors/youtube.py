@@ -22,7 +22,7 @@ from sqlalchemy import Engine, text
 
 from offscroll.config import SourceSettings
 from offscroll.connectors._base import ConnectorError, ParseResult, RawResponse, Record
-from offscroll.connectors._http import request_json
+from offscroll.connectors._http import QuotaError, SourceHTTPError, request_json
 from offscroll.quota import YouTubeQuota
 
 BASE_URL = "https://www.googleapis.com"
@@ -34,6 +34,32 @@ ChannelId = Annotated[str, Field(pattern=r"^UC[A-Za-z0-9_-]{22}$")]
 
 class MissingKeyError(ConnectorError):
     """YouTube was enabled but no exported API key is available."""
+
+
+class YouTubeSourceError(ConnectorError):
+    """A diagnostic built only from code-owned labels and numeric context."""
+
+    def __init__(
+        self,
+        code: Literal[
+            "http_error",
+            "request_failed",
+            "invalid_response",
+            "handle_unresolved",
+            "invalid_channel_metadata",
+            "invalid_upload_metadata",
+        ],
+        resource: Literal["channels", "playlistItems", "videos"],
+        channel_index: int | None = None,
+        http_status: int | None = None,
+    ) -> None:
+        parts = [f"youtube_{code}", f"resource={resource}"]
+        if channel_index is not None:
+            parts.append(f"channel_index={channel_index}")
+        if http_status is not None:
+            parts.append(f"http_status={http_status}")
+        self.safe_summary = " ".join(parts)
+        super().__init__(self.safe_summary)
 
 
 class ChannelConfig(BaseModel):
@@ -217,19 +243,32 @@ class YouTubeConnector:
         pages: list[RawResponse] = []
         now = datetime.now(UTC)
 
-        def get(resource: str, params: dict[str, str | int]) -> dict[str, object]:
+        def get(
+            resource: Literal["channels", "playlistItems", "videos"],
+            params: dict[str, str | int],
+            channel_index: int | None = None,
+        ) -> dict[str, object]:
             if pages:
                 time.sleep(0.5)
             path = PREFIX + resource
-            payload = request_json(
-                client,
-                BASE_URL + path,
-                params=params,
-                headers={"X-Goog-Api-Key": key.get_secret_value()},
-                reserve=quota.reserve,
-            )
+            try:
+                payload = request_json(
+                    client,
+                    BASE_URL + path,
+                    params=params,
+                    headers={"X-Goog-Api-Key": key.get_secret_value()},
+                    reserve=quota.reserve,
+                )
+            except QuotaError:
+                raise  # Keep quota exhaustion distinct and non-retryable.
+            except SourceHTTPError as exc:
+                raise YouTubeSourceError(
+                    "http_error", resource, channel_index, exc.status_code
+                ) from None
+            except ConnectorError:
+                raise YouTubeSourceError("request_failed", resource, channel_index) from None
             if not isinstance(payload.get("items"), list):
-                raise ConnectorError("YouTube returned no items list.")
+                raise YouTubeSourceError("invalid_response", resource, channel_index)
             items = payload["items"]
             count = len(items) if resource == "videos" and isinstance(items, list) else 0
             pages.append(
@@ -242,7 +281,7 @@ class YouTubeConnector:
                 # Config is authoritative: removed or disabled entries are not fetched.
                 connection.execute(text("UPDATE core.youtube_channels SET active = false"))
             ids: set[str] = set()
-            for config in configs:
+            for channel_index, config in enumerate(configs, start=1):
                 if not config.active:
                     continue
                 with self.engine.connect() as connection:
@@ -264,16 +303,17 @@ class YouTubeConnector:
                             "part": "snippet,contentDetails",
                             "forHandle": config.handle,
                         },
+                        channel_index,
                     )
                     items = payload["items"]
                     if not isinstance(items, list) or len(items) != 1:
-                        raise ConnectorError(
-                            "A configured YouTube handle did not resolve uniquely."
-                        )
+                        raise YouTubeSourceError("handle_unresolved", "channels", channel_index)
                     try:
                         channel = Channel.model_validate(items[0])
                     except ValidationError:
-                        raise ConnectorError("YouTube returned invalid channel metadata.") from None
+                        raise YouTubeSourceError(
+                            "invalid_channel_metadata", "channels", channel_index
+                        ) from None
                     playlist = channel.contentDetails.relatedPlaylists.uploads
                     with self.engine.begin() as connection:
                         # Re-resolving a changed handle must not leave its stale mapping behind.
@@ -322,10 +362,11 @@ class YouTubeConnector:
                         "playlistId": playlist,
                         "maxResults": 10,
                     },
+                    channel_index,
                 )
                 uploads = payload["items"]
                 if not isinstance(uploads, list):
-                    raise ConnectorError("YouTube returned an invalid upload list.")
+                    raise YouTubeSourceError("invalid_response", "playlistItems", channel_index)
                 for raw in uploads:
                     try:
                         if not isinstance(raw, dict):
@@ -333,7 +374,9 @@ class YouTubeConnector:
                         upload = Upload.model_validate(raw.get("contentDetails"))
                     except ValidationError, ValueError:
                         # Discovery corruption must not silently produce a successful empty run.
-                        raise ConnectorError("YouTube returned invalid upload metadata.") from None
+                        raise YouTubeSourceError(
+                            "invalid_upload_metadata", "playlistItems", channel_index
+                        ) from None
                     if now - timedelta(days=14) <= upload.videoPublishedAt <= now:
                         ids.add(upload.videoId)
             ordered = sorted(ids)

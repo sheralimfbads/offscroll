@@ -9,7 +9,13 @@ import pytest
 
 from offscroll.config import SourceSettings
 from offscroll.connectors._base import ConnectorError
-from offscroll.connectors.youtube import MissingKeyError, YouTubeConnector, load_channels, parse
+from offscroll.connectors.youtube import (
+    MissingKeyError,
+    YouTubeConnector,
+    YouTubeSourceError,
+    load_channels,
+    parse,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -60,9 +66,12 @@ def test_source_settings_mask_key_and_validate_enabled_sources(monkeypatch):
 
 def test_missing_key_fails_before_requests(monkeypatch):
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
-    with httpx.Client(
-        transport=httpx.MockTransport(lambda _: pytest.fail("Unexpected HTTP"))
-    ) as client, pytest.raises(MissingKeyError, match="Export YOUTUBE_API_KEY"):
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(lambda _: pytest.fail("Unexpected HTTP"))
+        ) as client,
+        pytest.raises(MissingKeyError, match="Export YOUTUBE_API_KEY"),
+    ):
         YouTubeConnector(None, SourceSettings()).fetch(client)
 
 
@@ -227,3 +236,81 @@ def test_video_requests_batch_at_50(fetch_setup):
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         connector.fetch(client)
     assert [len(batch) for batch in batches] == [50, 10]
+
+
+@pytest.mark.parametrize("cached,expected_units", [(False, 23), (True, 12)])
+def test_twelfth_handle_failure_matches_cold_and_warm_cache_counts(
+    fetch_setup, cached, expected_units
+):
+    connector, key, charged, engine = fetch_setup
+    connector.settings.youtube_channels_file.write_text(
+        json.dumps(
+            {"channels": [{"handle": f"@example{n}", "category": "science"} for n in range(12)]}
+        )
+    )
+    if cached:
+        connection = engine.connect.return_value.__enter__.return_value
+        connection.execute.return_value.mappings.return_value.first.side_effect = [
+            {"channel_id": "UC" + str(n).zfill(22), "uploads_playlist_id": "UU" + str(n).zfill(22)}
+            for n in range(11)
+        ] + [None]
+
+    def respond(request):
+        if request.url.path.endswith("/channels"):
+            handle = request.url.params["forHandle"]
+            payload = {"kind": "youtube#channelListResponse", "items": []}
+            if handle != "@example11":
+                payload = channel_payload(int(handle.removeprefix("@example")))
+            return httpx.Response(200, json=payload)
+        return httpx.Response(200, json={"kind": "youtube#playlistItemListResponse", "items": []})
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(respond)) as client,
+        pytest.raises(YouTubeSourceError) as error,
+    ):
+        connector.fetch(client)
+    assert str(error.value) == "youtube_handle_unresolved resource=channels channel_index=12"
+    assert len(charged) == expected_units
+    assert key not in str(error.value)
+    assert key not in repr(error.value)
+
+
+def test_http_failure_diagnostic_excludes_response_body_headers_and_url(fetch_setup):
+    connector, key, charged, _ = fetch_setup
+    response = httpx.Response(404, json={"error": {"message": f"private {key}"}})
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)) as client,
+        pytest.raises(YouTubeSourceError) as error,
+    ):
+        connector.fetch(client)
+    assert (
+        str(error.value) == "youtube_http_error resource=channels channel_index=1 http_status=404"
+    )
+    assert key not in str(error.value)
+    assert "private" not in str(error.value)
+    assert charged == [1]
+
+
+def test_invalid_upload_diagnostic_locates_the_playlist(fetch_setup):
+    connector, key, _, _ = fetch_setup
+
+    def respond(request):
+        if request.url.path.endswith("/channels"):
+            return httpx.Response(200, json=channel_payload())
+        return httpx.Response(
+            200,
+            json={
+                "kind": "youtube#playlistItemListResponse",
+                "items": [{"contentDetails": {"bad": key}}],
+            },
+        )
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(respond)) as client,
+        pytest.raises(YouTubeSourceError) as error,
+    ):
+        connector.fetch(client)
+    assert (
+        str(error.value) == "youtube_invalid_upload_metadata resource=playlistItems channel_index=1"
+    )
+    assert key not in repr(error.value)

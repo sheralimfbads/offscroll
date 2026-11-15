@@ -344,6 +344,15 @@ item counts grow too. Share only command summaries, never keys or connection URL
 The agent's mocked tests and public-source checks do not establish YouTube live
 authorization or channel validity. M3 stays untagged until full acceptance passes.
 
+For a YouTube failure, retry only `.venv/bin/offscroll run youtube` after addressing
+the reported issue. Diagnostics include a safe error code, API resource name,
+`channel_index` (one-based position in the YAML list, including inactive entries),
+and HTTP status when available. For example, `youtube_handle_unresolved
+resource=channels channel_index=12` identifies the entry to inspect without dumping
+the API response. `status` retains that diagnostic after rollback. Historical
+`source_error` records cannot recover details that were not stored. Once YouTube
+succeeds, repeat the full two-run acceptance above.
+
 ## Structure and decisions
 
 - `src/offscroll/youtube.py`: one request function, a small `Video` dataclass, and

@@ -20,6 +20,14 @@ class QuotaError(ConnectorError):
     """Quota exhaustion is safe to report and must not be retried."""
 
 
+class SourceHTTPError(ConnectorError):
+    """Expose only a numeric HTTP status, never the response message or URL."""
+
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+        super().__init__(f"Source request rejected (HTTP {status_code}).")
+
+
 def request_json(
     client: httpx.Client,
     url: str,
@@ -64,7 +72,7 @@ def request_json(
                 if quota:
                     raise QuotaError("YouTube quotaExceeded; wait for the next quota day.")
             if response.status_code != 429 and not 500 <= response.status_code < 600:
-                raise ConnectorError(f"Source request rejected (HTTP {response.status_code}).")
+                raise SourceHTTPError(response.status_code)
             reason = f"http_{response.status_code}"
         if attempt < 2:
             delay = 5 * 2**attempt + secrets.randbelow(250) / 1000

@@ -143,3 +143,8 @@ collection. Use the README's acceptance commands locally; never share keys.
 Read ADRs [0005](decisions/0005-wikipedia.md), [0006](decisions/0006-youtube-collection.md),
 and [0007](decisions/0007-retention-and-quality.md). Schedule purging before unattended
 use: an application that is stopped cannot enforce deletion deadlines itself.
+
+When a run fails, inspect its safe code, `resource`, and `channel_index` in the
+summary or `status`. The index counts entries in YAML from one, including disabled
+entries. For example, an unresolved twelfth handle plus eleven cached playlists
+uses twelve requests. Counts can localize a fault; they cannot prove its cause.

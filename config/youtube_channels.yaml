@@ -13,7 +13,8 @@ channels:
   - {handle: "@TechnologyConnections", category: technology, active: true}
   - {handle: "@standupmaths", category: science, active: true}
   - {handle: "@pbsspacetime", category: science, active: true}
-  - {handle: "@pbseons", category: science, active: true}
+  # PBS identifies the channel as youtube.com/eons; confirm handle via owner-run API acceptance.
+  - {handle: "@eons", category: science, active: true}
   - {handle: "@PracticalEngineeringChannel", category: technology, active: true}
   - {handle: "@RealEngineering", category: technology, active: true}
   - {handle: "@minutephysics", category: science, active: true}

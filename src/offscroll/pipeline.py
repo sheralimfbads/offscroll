@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from offscroll.connectors import get_connector
 from offscroll.connectors._base import Connector, ConnectorError, RawResponse
 from offscroll.connectors._http import QuotaError
-from offscroll.connectors.youtube import MissingKeyError
+from offscroll.connectors.youtube import MissingKeyError, YouTubeSourceError
 from offscroll.retention import purge_expired
 
 logger = logging.getLogger(__name__)
@@ -208,6 +208,8 @@ def execute_run(
                 failure = "youtube_quota_exceeded"
             elif isinstance(exc, MissingKeyError):
                 failure = "missing_youtube_api_key"
+            elif isinstance(exc, YouTubeSourceError):
+                failure = exc.safe_summary
             elif isinstance(exc, ConnectorError):
                 failure = "source_error"
             elif isinstance(exc, SQLAlchemyError):
@@ -226,7 +228,7 @@ def execute_run(
         )
     logger.info(
         "event=run_summary run_id=%s source=%s status=%s "
-        "fetched=%s upserted=%s rejected=%s duration=%.3f",
+        "fetched=%s upserted=%s rejected=%s duration=%.3f error=%s",
         summary.run_id,
         summary.source,
         summary.status,
@@ -234,6 +236,7 @@ def execute_run(
         summary.upserted,
         summary.rejected,
         time.monotonic() - started,
+        failure or "none",
     )
     if failure:
         raise PipelineError(

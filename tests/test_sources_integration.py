@@ -2,6 +2,7 @@
 
 import copy
 import json
+import logging
 import os
 from contextlib import contextmanager, nullcontext
 from datetime import UTC, datetime, timedelta
@@ -270,3 +271,29 @@ def test_missing_youtube_key_records_failure_without_http(database, monkeypatch)
         == "missing_youtube_api_key"
     )
     assert connection.scalar(text("SELECT status FROM raw.ingest_runs")) == "failed"
+
+
+def test_youtube_diagnostic_survives_rollback_without_exposing_response(
+    database, monkeypatch, tmp_path, caplog
+):
+    engine, connection = database
+    key = uuid4().hex
+    config = tmp_path / "channels.yaml"
+    config.write_text("channels: [{handle: '@example', category: science}]")
+    monkeypatch.setenv("YOUTUBE_API_KEY", key)
+    monkeypatch.setenv("YOUTUBE_CHANNELS_FILE", str(config))
+    response = httpx.Response(404, json={"error": {"message": f"private {key}"}})
+    caplog.set_level(logging.INFO, logger="offscroll.pipeline")
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)) as client,
+        pytest.raises(PipelineError, match="youtube_http_error") as error,
+    ):
+        execute_run(engine, "youtube", client=client)
+    expected = "youtube_http_error resource=channels channel_index=1 http_status=404"
+    assert connection.scalar(text("SELECT error_summary FROM raw.ingest_runs")) == expected
+    assert connection.scalar(text("SELECT status FROM raw.ingest_runs")) == "failed"
+    assert connection.scalar(text("SELECT count(*) FROM raw.api_responses")) == 0
+    assert f"error={expected}" in caplog.text
+    assert key not in str(error.value)
+    assert key not in caplog.text
+    assert "private" not in caplog.text

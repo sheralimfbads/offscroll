@@ -77,6 +77,35 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Current task report: M3 implemented, owner live acceptance pending
 
+### Owner acceptance failure investigation (2026-11-15)
+
+- Owner reports HN/Wikipedia succeeded but YouTube failed in runs 4, 7, and 8,
+  consuming 23, 12, and 12 units respectively. Acceptance has **not** passed.
+- Read-only inspection of the owner's PostgreSQL cache showed the first eleven
+  configured handles and the generic `source_error` records. No credentials or
+  raw payloads were read, no data was changed, and no live YouTube requests were made.
+- The request counts and cache localize the likely failure to the twelfth handle,
+  `@pbseons`. Regression tests reproduce cold/warm-cache counts for an unresolved
+  twelfth handle. The original API response was discarded, so the exact cause remains
+  inferred rather than proven.
+- Changed the Eons candidate to `@eons` using PBS's published `youtube.com/eons`
+  address as evidence; live handle verification remains pending. ADR 0006 records
+  the source and qualification.
+- Added safe, structured YouTube errors: fixed labels, resource, YAML position,
+  numeric HTTP status. Persist them through rollback and print them in run summaries.
+  Raw exceptions, response text, URLs, keys, and headers remain excluded.
+- Validation: `make check` passed (118 unit tests, strict mypy for 15 source files,
+  Ruff clean). `make test-integration`: 15 passed, 118 deselected in 1.28s, using a
+  separate disposable database that was removed afterward. The owner's database
+  was only read for diagnosis. Diff review passed; no push or milestone tag.
+- Review risks: actual YouTube resolution is still unverified; another later channel
+  may also be invalid; failed runs deliberately discard raw data, so diagnostics
+  remain selective. No dependency, schema, retry, or acceptance changes were made.
+- Next owner action: run only `offscroll run youtube` once with the new changes.
+  Share its safe summary if it fails. On success, repeat the two full acceptance runs.
+
+### Original M3 implementation evidence
+
 - Created `m3-sources` from merged main; no pushes.
 - Added migration `0003` for source policies, YouTube channel cache (including
   refresh time for retention), and durable daily quota counters. Applied migrations

@@ -68,3 +68,19 @@ Cache refreshes can survive a later data-run failure. Failed raw/core writes rem
 atomic. Local counters are conservative estimates, not the provider's authoritative
 remaining quota. Live key authorization and candidate handle availability must be
 checked by the owner; mocks cannot establish either.
+
+Follow-up, 2026-11-15: owner live runs failed after 23 requests, then 12 requests
+on two warm-cache attempts. A read-only database check found exactly the first
+eleven configured handles cached, pointing to the twelfth entry, `@pbseons`.
+Mocks reproduce both request counts when the twelfth handle does not resolve.
+This localizes the likely failure but does not recover the original API response.
+[PBS's published Eons address](https://www.pbs.org/video/can-you-dig-it-paleontology-and-eons-yb69ss/)
+is `youtube.com/eons` (checked 2026-11-15). Change the candidate to `@eons`, with
+handle/API verification still pending; a legacy channel URL alone does not prove
+the current handle. No YouTube page or media was fetched for this investigation.
+
+Preserve structured YouTube failure diagnostics in the run record and summary:
+code-owned error label, resource name, one-based YAML channel position, and numeric
+HTTP status when available. Never include raw exception strings, remote error
+messages, URLs, headers, configuration handles, or keys. This adds actionable
+context without changing retries, skipping failing channels, or weakening acceptance.
