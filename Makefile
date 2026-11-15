@@ -1,9 +1,16 @@
 PYTHON ?= .venv/bin/python
+PYTHON_MINOR := $(shell cat .python-version)
 COMPOSE = docker compose --env-file /dev/null -f compose.yaml
 
-.PHONY: install lint format typecheck test check db-up db-down migrate test-integration
+.PHONY: venv check-python install lint format typecheck test check db-up db-down migrate test-integration smoke
 
-install:
+venv:
+	python$(PYTHON_MINOR) -m venv .venv
+
+check-python:
+	@$(PYTHON) -c 'import sys; from pathlib import Path; expected = Path(".python-version").read_text().strip(); actual = ".".join(map(str, sys.version_info[:2])); sys.exit(0 if actual == expected else "Use Python " + expected + "; recreate .venv with make venv")'
+
+install: check-python
 	$(PYTHON) -m pip install -e '.[dev]'
 
 lint:
@@ -18,7 +25,7 @@ typecheck:
 test:
 	$(PYTHON) -m pytest -q -m 'not integration'
 
-check: lint typecheck test
+check: check-python lint typecheck test
 
 db-up:
 	$(COMPOSE) up -d --wait postgres
@@ -31,3 +38,7 @@ migrate:
 
 test-integration:
 	$(PYTHON) -m pytest -q -m integration
+
+# Manual only: calls the public API and writes to the configured database.
+smoke: check-python
+	$(PYTHON) -m offscroll.cli run hackernews --page-cap 1

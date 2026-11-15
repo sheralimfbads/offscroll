@@ -37,6 +37,7 @@ def test_initial_migration_is_applied():
                 "finished_at",
                 "status",
                 "items_fetched",
+                "items_rejected",
                 "error_summary",
             }
             assert inspector.get_pk_constraint("ingest_runs", schema="raw")[
@@ -49,7 +50,7 @@ def test_initial_migration_is_applied():
             assert columns["error_summary"]["nullable"] is True
             assert columns["items_fetched"]["default"] is not None
             assert (
-                connection.scalar(text("SELECT version_num FROM public.alembic_version")) == "0001"
+                connection.scalar(text("SELECT version_num FROM public.alembic_version")) == "0002"
             )
     except SQLAlchemyError:
         # Never surface the underlying driver's connection string or parameters.

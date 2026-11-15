@@ -32,10 +32,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version-file: .python-version
       - name: Install
         run: |
-          python -m venv .venv
+          make venv
           make install
       - name: Lint, typecheck, and unit tests
         run: make check

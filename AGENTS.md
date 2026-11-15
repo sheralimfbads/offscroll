@@ -3,7 +3,8 @@
 ## Goal and stack
 
 - Build a weekly digest that collects, ranks, and summarizes items from a few sources.
-- Use Python 3.11+, httpx, and pytest. PostgreSQL and FastAPI are planned for later.
+- Use the Python minor in `.python-version`, httpx, pytest, and PostgreSQL.
+  FastAPI is planned for later.
 - Keep code straightforward and explainable for a beginner learning backend and data engineering.
 
 ## Workflow
@@ -40,3 +41,5 @@
 - Link out to originals instead of copying article text or images.
 - Never download videos, scrape YouTube, or store audiovisual files.
 - Never present unchecked claims as verified.
+
+Source of truth for scope and rules: docs/PROJECT_BRIEF.md

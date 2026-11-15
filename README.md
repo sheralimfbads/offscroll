@@ -1,17 +1,19 @@
 # Offscroll
 
-A minimal Python project with a YouTube probe and PostgreSQL infrastructure for
-a future weekly curated digest. The probe asks
+A small Python metadata pipeline with a Hacker News digest, a YouTube feasibility
+probe, and PostgreSQL storage. The YouTube probe asks
 whether YouTube's `videos.list` endpoint with `chart=mostPopular` supplies useful
 candidates and the metadata needed to link to them and inspect embedding status.
 It is not the digest application.
 
 ## Setup (Ubuntu/Linux)
 
-Requires Python 3.11 or newer and its `venv` support. Run from the repository root:
+Use Python **3.14**, pinned in `.python-version`, with its `venv` support. CI reads
+the same file, and `make install` / `make check` reject a different minor version.
+Run from the repository root:
 
 ```bash
-python3 -m venv .venv
+make venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
 cp .env.example .env
@@ -64,6 +66,8 @@ if you use a different environment.
 
 | Target | Purpose |
 | --- | --- |
+| `make venv` | Create `.venv` with the Python minor from `.python-version`. |
+| `make check-python` | Verify that the active project interpreter matches the pin. |
 | `make install` | Install the package in editable mode with development dependencies. |
 | `make lint` | Run Ruff checks on `src/`, `scripts/`, `tests/`, and `migrations/`. |
 | `make format` | Format Python files in those directories with Ruff. |
@@ -73,7 +77,8 @@ if you use a different environment.
 | `make db-up` | Start PostgreSQL and wait for its healthcheck. |
 | `make db-down` | Stop PostgreSQL while preserving its named volume. |
 | `make migrate` | Apply Alembic migrations through the latest revision. |
-| `make test-integration` | Check the migrated PostgreSQL schema. |
+| `make test-integration` | Check migrations and pipeline behavior against PostgreSQL. |
+| `make smoke` | Manually ingest and transform one page from the live HN API. |
 
 Ruff provides linting, import ordering, and formatting; mypy catches type errors.
 Both are development-only dependencies. Stricter checks add feedback without
@@ -81,6 +86,11 @@ adding runtime dependencies; `make format` edits source files, while `make check
 does not rewrite them.
 Run `make check` before submitting changes. Working rules are in [AGENTS.md](AGENTS.md),
 and decision records use the [template](docs/decisions/0000-template.md).
+
+The [project brief](docs/PROJECT_BRIEF.md) defines scope; [PROGRESS.md](docs/PROGRESS.md)
+records milestone status and open questions. Read [HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)
+for the learning walkthrough. The owner pushes and merges; automation stops after
+each milestone report until the owner says `continue`.
 
 ## Local PostgreSQL
 
@@ -124,8 +134,9 @@ use fixed messages.
 The first migration, `0001`, creates `raw`, `core`, and `marts`, plus
 `raw.ingest_runs`: an identity primary key, source, timezone-aware start/finish
 timestamps, status, fetched item count, and optional error summary. The database
-also stores Alembic's revision marker. There are no collectors or ingestion jobs
-yet. Future writers must sanitize error summaries before storing them.
+also stores Alembic's revision marker. Migration `0002` adds raw API responses,
+sources, items, snapshots, the latest-metrics view, and a rejected-item counter.
+Pipeline failures store fixed error categories, never raw exception messages.
 
 `make migrate` is safe to repeat after a successful upgrade. Downgrading `0001`
 would delete the run log and remove the schemas; it refuses to cascade through
@@ -143,6 +154,100 @@ autogeneration remain future work.
 On pushes and pull requests, [CI](.github/workflows/ci.yml) runs `make check`,
 then applies migrations and runs the integration test against a disposable
 PostgreSQL service. Its public placeholder credentials require no CI secrets.
+This disposable test fixture is the narrow exception documented in
+[ADR 0004](docs/decisions/0004-runtime-and-ci.md); real API and production credentials
+must use GitHub Actions secrets.
+
+## Hacker News pipeline
+
+Activate `.venv`, export the database settings as above, and run:
+
+```bash
+make db-up
+make migrate
+offscroll run hackernews
+offscroll digest
+
+# Fetch without transforming; then replay stored responses without network calls.
+offscroll ingest hackernews --min-points 20 --page-cap 5
+offscroll transform                 # latest run that still has raw responses
+offscroll transform --run-id 123     # replace 123 with a logged run_id
+offscroll purge-raw
+```
+
+For a bounded manual live check, run `make smoke` after migrating the database.
+It writes a real run and at most one page of API data; a truncation warning means
+more results exist beyond that cap. It never runs in CI. Tests remain offline
+for HTTP, including the PostgreSQL integration suite.
+
+```mermaid
+flowchart LR
+    HN[HN Algolia API] -->|fetch| Raw[raw.api_responses]
+    Raw -->|pure parse and validation| Items[core.items]
+    Raw -->|metrics per item and run| Snapshots[core.item_snapshots]
+    Items --> Latest[marts.latest_item_metrics]
+    Snapshots --> Latest
+    Latest --> Digest[Top 15 stories from the last 7 days]
+    Runs[raw.ingest_runs] -. run status and counts .-> Raw
+    Retention[core.sources retention policy] -->|purge-raw| Raw
+```
+
+The connector calls Algolia's `search_by_date` with `tags=story`, a seven-day
+`created_at_i` cutoff, `points>=20` by default, and `hitsPerPage=1000`. A single
+live feasibility request on 2026-11-14 confirmed that the points filter works;
+parsing also enforces the threshold defensively. `--min-points` changes that
+threshold. `--page-cap` defaults to five. The connector warns when `nbHits` exceeds
+the fetched hit count; a capped or shifting result set is not claimed to be complete.
+
+Each fetch uses one HTTP client, an identifying User-Agent, a 15-second timeout
+(five seconds for connecting), and a 0.5-second pause between pages. Only timeouts,
+429, and 5xx responses are retried: at most three total attempts per page, with
+exponential delays and jitter. Other failures stop the run. HTTP response bodies,
+request URLs, and exception details are not logged.
+
+Pydantic validates each hit. Invalid hits increase `items_rejected`; valid hits
+below the requested points threshold are filtered out, not rejected. `items_fetched`
+counts all returned hits. The summary's `upserted` count is the number of distinct
+accepted items processed, including existing items. Raw endpoint values contain
+only the fixed API path and non-secret filter/pagination parameters. Raw JSON is
+stored in PostgreSQL, not printed by the CLI.
+
+`run` lands raw responses and transforms them in one transaction. A savepoint
+rolls back data changes on failure while the outer transaction commits the failed
+run record. `running` is therefore not externally visible before completion;
+a process crash or lost database connection can roll back the whole transaction,
+including that run record. Each completed attempt emits one `key=value` summary
+with fetched, upserted, rejected, and duration fields.
+
+`ingest` commits raw data only. `transform` reuses the selected run ID and original
+fetch timestamps; replay cannot add duplicate `(item_id, run_id)` snapshots or
+overwrite newer item metadata. A new `run` reuses item identities and adds fresh
+snapshots. First-seen timestamps are preserved. Core tables use explicit bound
+SQL through SQLAlchemy Core; no ORM models are used by the pipeline.
+
+The digest selects the latest snapshot per item (ties break by run ID), filters
+HN stories by publish time within the last seven days, and orders by score
+descending with stable tie-breakers. It prints up to 15 rows with rank, score,
+comments, title, URL, discussion URL, and domain. This is an attention ranking,
+not factual verification, summarization, or cross-source corroboration.
+
+**Retention:** Offscroll's own policy retains HN raw API responses for 90 days,
+recorded in `core.sources`. `purge-raw` deletes expired raw responses according to
+that table and preserves core items, snapshots, and run logs. It is a manual
+command in this milestone; schedule it before unattended collection. Purged runs
+can no longer be replayed. Links point to originals; article pages are not scraped.
+
+To add a source, add one module under `src/offscroll/connectors/` exporting a
+`connector` that implements the small Protocol in `_base.py`, including its
+retention rule. `fetch` performs I/O and returns raw pages; `parse` is a pure
+payload-to-records function. The module loader and common transform need no new
+registry entry. HN-specific digest selection remains deliberate for this milestone.
+
+Unit tests use two synthetic JSON fixtures and `httpx.MockTransport`; live HTTP
+is blocked in all tests. Database integration tests cover two runs, replay,
+rejection counts, savepoint rollback, ordering, and purging. Run them against a
+dedicated test database: pipeline test writes and temporary cleanup are wrapped
+in an outer transaction that is rolled back, but can hold locks while running.
 
 ## Structure and decisions
 
@@ -150,8 +255,10 @@ PostgreSQL service. Its public placeholder credentials require no CI secrets.
   response validation with safe errors. Configuration is passed explicitly.
 - `scripts/probe_youtube.py`: argument parsing, dotenv loading, and readable output.
 - `src/offscroll/config.py` and `db.py`: environment settings and database factories.
+- `src/offscroll/connectors/`: network fetchers and pure payload parsers.
+- `src/offscroll/pipeline.py` and `cli.py`: transactional SQL and argparse commands.
 - `migrations/`: handwritten Alembic schema changes.
-- `tests/`: offline unit tests and one marked database integration test.
+- `tests/`: offline unit tests and marked database integration tests.
 - `pyproject.toml`: setuptools editable installation; `httpx` and `python-dotenv`
   plus the database dependencies at runtime; pytest, Ruff, and mypy in `dev`.
 
