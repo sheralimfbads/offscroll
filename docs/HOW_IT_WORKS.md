@@ -151,3 +151,13 @@ When a run fails, inspect its safe code, `resource`, and `channel_index` in the
 summary or `status`. The index counts entries in YAML from one, including disabled
 entries. For example, an unresolved twelfth handle plus eleven cached playlists
 uses twelve requests. Counts can localize a fault; they cannot prove its cause.
+
+## M4 preflight: a requirements decision before implementation
+
+On 2026-11-16, M4 resumed from the completed M3 pipeline. No ranking code has
+been added yet. A **derived metric** is a new number computed from another
+source's data, such as video views divided by age. Keeping that number internal
+does not establish permission to calculate it. ADR 0008 records the official
+policy check and a proposed two-source digest while YouTube permission is
+unresolved. This trades video coverage for an implementation that does not
+depend on that permission. The full M4 walkthrough will follow implementation.

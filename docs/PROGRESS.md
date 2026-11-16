@@ -1,6 +1,7 @@
 # Offscroll progress
 
-Last resume check: 2026-11-15 (Asia/Tashkent). M3 live acceptance passed; milestone closed locally.
+Last resume check: 2026-11-16 (Asia/Tashkent). M3 is complete locally; M4 preflight
+identified a requirements conflict requiring an owner decision (ADR 0008).
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's embedded date is preserved verbatim; use the date above for this resume check.
 
@@ -36,7 +37,10 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m3-sources`, based on main's M2 merge `b9c906d`.
+- Current branch: `m4-ranking`, starting at M3 closeout `de119e2` (`m3-done`).
+- Resume began with a clean working tree on `m3-sources`. Local `main` and the
+  cached `origin/main` reference still point to `b9c906d`; no remote fetch was
+  performed, so this does not establish the current remote merge state.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
 - Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`;
   do not edit applied migrations.
@@ -71,12 +75,45 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 1. **M3 acceptance passed:** owner supplied successful live results for runs 10–15.
    No API key was shared with the agent. Owner pushes the completed branch/tag for fresh CI.
-2. **Before M4 YouTube scoring:** resolve the derived-metrics policy concern in ADR 0001.
-   Hiding a computed metric from display does not by itself establish permission to compute it.
+2. **Before M4 implementation:** choose the concrete proposal in
+   [ADR 0008](decisions/0008-m4-youtube-scoring.md): defer YouTube from the M4
+   digest, or establish applicable permission for the original design.
+   Official policies were rechecked on 2026-11-16; hiding a computed metric
+   does not establish permission to compute it.
 3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
 4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
 
-## Current milestone report: M3 complete locally
+## M4 resume preflight: owner decision pending
+
+The owner's continuation request advances work to M4. Before implementation,
+the recorded YouTube policy issue was checked against official sources and
+documented as a proposed decision in ADR 0008. The recommendation retains M3
+collection but limits M4 ranking and clustering to HN/Wikipedia, producing at
+most 12 selected items with the existing source caps. This changes scope and
+requires an explicit owner decision under brief section 8.
+
+This preflight changes documentation only. No new dependencies, runtime behavior,
+schema, applied migrations, CI settings, or lint rules changed. M4 implementation
+and its acceptance tests remain outstanding; there is no M4 completion tag.
+
+Validation: `make check` passed Ruff, strict mypy (15 source files), and 118 unit
+tests (15 integration tests deselected). `make migrate` and
+`make test-integration` passed against disposable PostgreSQL 18.7: 15 integration
+tests passed, 118 deselected. The container and temporary storage were removed.
+No `.env` or existing credentials were read; the owner's database was untouched.
+
+Self-review: the proposal is explicitly pending, the project brief is preserved,
+and local branch state is distinguished from unqueried remote state.
+Top three risks:
+
+1. Excluding YouTube reduces coverage and caps the digest at 12 items; clustering
+   and domain limits can reduce it further.
+2. YouTube permission and applicability remain unestablished; the owner cannot
+   resolve that by merely approving a hidden derived score.
+3. M3 push/merge and fresh CI remain unconfirmed; this M4 branch includes M3's
+   local commits and may need reconciliation after the owner's merge.
+
+## Previous milestone report: M3 complete locally
 
 Owner-provided live output on 2026-11-15 establishes two successful `run-all`
 executions, successful `status` for all three sources, and a final `check-data` pass.
