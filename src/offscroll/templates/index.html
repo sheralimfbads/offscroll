@@ -41,7 +41,7 @@
           {% if item.discussion_url %}<a class="discussion" href="{{ item.discussion_url }}" rel="noreferrer">Read the HN discussion →</a>{% endif %}
         {% endif %}
         </article></li>
-      {% else %}<li class="empty">A quieter week here. No eligible selections in this edition.</li>{% endfor %}
+      {% else %}<li class="empty">{{ empty_lanes[lane] }}</li>{% endfor %}
       </ol>
     </section>
   {% endfor %}

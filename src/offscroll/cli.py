@@ -16,6 +16,7 @@ from offscroll.config import SourceSettings, load_settings
 from offscroll.connectors._base import ConnectorError
 from offscroll.db import create_db_engine
 from offscroll.delivery import export_site
+from offscroll.diagnostics import doctor
 from offscroll.digests import build_digest, read_digest, render_digest, summary_review_inputs
 from offscroll.operations import check_data, run_all, source_status
 from offscroll.pipeline import PipelineError, digest, execute_run
@@ -67,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("purge-raw")
     commands.add_parser("run-all")
     commands.add_parser("status")
+    health = commands.add_parser("doctor")
+    health.add_argument("--site", type=Path, default=Path("site"))
     commands.add_parser("summary-inputs")
     backup = commands.add_parser("backup")
     backup.add_argument("--output", type=Path, required=True)
@@ -87,6 +90,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "expire-backups":
             print(f"expired_backups={expire_backups(args.directory)}")
             return 0
+        if args.command == "doctor":
+            try:
+                engine = create_db_engine(load_settings())
+            except ValidationError, SettingsError:
+                engine = None
+            report = doctor(engine, SourceSettings(), args.site)
+            print(json.dumps(report, default=str, sort_keys=True))
+            return 0 if report["ok"] else 1
         engine = create_db_engine(load_settings())
         if args.command in ("ingest", "run"):
             execute_run(
@@ -105,15 +116,23 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "run-all":
             sources = SourceSettings().enabled_sources
             results = run_all(engine, sources)
-            columns = ("source", "status", "run_id", "fetched", "upserted", "rejected")
+            columns = ("source", "status", "run_id", "fetched", "upserted", "rejected", "error")
             print("\t".join(columns))
             for result in results:
                 print("\t".join(str(result.get(column, "-")) for column in columns))
+                if result.get("source") == "youtube" and result.get("status") == "failed":
+                    print(
+                        "error=youtube_collection_failed Check the reported code: key presence, "
+                        "API enablement/key restrictions, or quota. No videos were refreshed.",
+                        file=sys.stderr,
+                    )
             healthy = print_checks(engine, sources)
             return 0 if healthy and all(r["status"] == "succeeded" for r in results) else 1
         elif args.command == "status":
-            for row in source_status(engine, SourceSettings().enabled_sources):
-                print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in row.items()))
+            status_rows = source_status(engine, SourceSettings().enabled_sources)
+            for status_row in status_rows:
+                print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in status_row.items()))
+            return 0 if status_rows and all(r["health"] == "ok" for r in status_rows) else 1
         elif args.command == "check-data":
             return 0 if print_checks(engine, SourceSettings().enabled_sources) else 1
         elif args.command == "backup":

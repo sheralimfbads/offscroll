@@ -10,6 +10,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, ValidationError, field_validator
 
 from offscroll.connectors._base import ConnectorError, ParseResult, RawResponse, Record
+from offscroll.connectors._http import retry_delay
 
 logger = logging.getLogger(__name__)
 API_URL = "https://hn.algolia.com/api/v1/search_by_date"
@@ -95,12 +96,14 @@ def parse(payload: dict[str, object], *, min_points: int = 20) -> ParseResult:
 
 def _request(client: httpx.Client, params: dict[str, str | int]) -> httpx.Response:
     for attempt in range(3):
+        response = None
         try:
             response = client.get(
                 API_URL,
                 params=params,
                 headers={"User-Agent": USER_AGENT},
                 timeout=httpx.Timeout(15, connect=5),
+                follow_redirects=False,
             )
         except httpx.TimeoutException:
             reason = "timeout"
@@ -116,7 +119,7 @@ def _request(client: httpx.Client, params: dict[str, str | int]) -> httpx.Respon
             logger.warning(
                 "event=retry source=hackernews attempt=%s reason=%s", attempt + 1, reason
             )
-            time.sleep(2**attempt + secrets.randbelow(250) / 1000)
+            time.sleep(retry_delay(response, 2**attempt + secrets.randbelow(250) / 1000))
     raise ConnectorError("HN request failed after 3 attempts.")
 
 

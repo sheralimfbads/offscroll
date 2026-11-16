@@ -81,6 +81,10 @@ def test_page_escapes_source_text_has_finite_sections_and_no_trackers(lanes):
 
 def test_export_writes_public_html_json_and_local_assets(monkeypatch, tmp_path, lanes):
     monkeypatch.setattr("offscroll.delivery.read_digest", lambda _: lanes)
+    monkeypatch.setattr(
+        "offscroll.delivery.digest_identity",
+        lambda _: {"id": 1, "generated_at": "2026-11-16T00:00:00+00:00"},
+    )
     output = tmp_path / "site"
     page = export_site(Mock(), output)
     assert page.exists()
@@ -157,3 +161,24 @@ def test_brand_asset_is_the_unmodified_official_full_logo(lanes):
     )
     html = render_page(public_lanes(lanes), date="16 November 2026")
     assert 'src="youtube-logo.png" alt="YouTube" height="48"' in html
+
+
+def test_empty_video_lane_remains_visible_and_explicit(lanes):
+    from offscroll.digests import render_digest
+
+    lanes["youtube"] = []
+    message = "No new videos from your channels this week."
+    html = render_page(public_lanes(lanes), date="17 November 2026")
+    assert 'id="youtube-heading"' in html and message in html
+    assert message in render_digest(lanes)
+    assert "check source status" in html
+
+
+def test_export_refuses_a_digest_changed_during_read(monkeypatch, tmp_path, lanes):
+    monkeypatch.setattr("offscroll.delivery.read_digest", lambda _: lanes)
+    monkeypatch.setattr(
+        "offscroll.delivery.digest_identity", Mock(side_effect=[{"id": 1}, {"id": 2}])
+    )
+    with pytest.raises(DigestError, match="changed during export"):
+        export_site(Mock(), tmp_path / "site")
+    assert not (tmp_path / "site").exists()

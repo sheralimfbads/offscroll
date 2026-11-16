@@ -2,11 +2,11 @@
 
 from dataclasses import asdict
 
-from sqlalchemy import Engine, RowMapping, text
+from sqlalchemy import Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from offscroll.connectors._base import ConnectorError
-from offscroll.pipeline import PipelineError, execute_run
+from offscroll.pipeline import PipelineError, execute_run, safe_run_error
 from offscroll.retention import purge_expired
 
 
@@ -22,7 +22,7 @@ def run_all(engine: Engine, sources: list[str]) -> list[dict[str, object]]:
                     "source": source,
                     "status": "failed",
                     "run_id": exc.run_id if isinstance(exc, PipelineError) else None,
-                    "error": "source_run_failed",
+                    "error": exc.code if isinstance(exc, PipelineError) else "source_run_failed",
                 }
             )
         else:
@@ -30,12 +30,15 @@ def run_all(engine: Engine, sources: list[str]) -> list[dict[str, object]]:
     return results
 
 
-def source_status(engine: Engine, sources: list[str]) -> list[RowMapping]:
+def source_status(engine: Engine, sources: list[str]) -> list[dict[str, object]]:
     with engine.connect() as connection:
-        return list(
+        rows = list(
             connection.execute(
                 text("""
             SELECT s.source, r.id AS run_id, r.status, r.finished_at, r.error_summary,
+                clock_timestamp() AS checked_at,
+                (SELECT max(finished_at) FROM raw.ingest_runs
+                 WHERE source=s.source AND status='succeeded') AS last_success_at,
                 (SELECT max(snap.captured_at) FROM core.item_snapshots snap
                  JOIN core.items i ON i.id = snap.item_id WHERE i.source = s.source) AS data_at,
                 (SELECT count(*) FROM core.items i WHERE i.source = s.source) AS items,
@@ -58,6 +61,32 @@ def source_status(engine: Engine, sources: list[str]) -> list[RowMapping]:
             ).mappings()
         )
 
+    result = []
+    for row in rows:
+        entry = dict(row)
+        entry["error_summary"] = safe_run_error(entry["error_summary"])
+        age = (
+            (row["checked_at"] - row["data_at"]).total_seconds() / 3600 if row["data_at"] else None
+        )
+        entry["freshness_hours"] = age
+        success_age = (
+            (row["checked_at"] - row["last_success_at"]).total_seconds() / 3600
+            if row["last_success_at"]
+            else None
+        )
+        entry["last_success_age_hours"] = success_age
+        entry["health"] = (
+            "ok"
+            if row["status"] == "succeeded"
+            and age is not None
+            and 0 <= age < 36
+            and success_age is not None
+            and 0 <= success_age < 36
+            else "failed"
+        )
+        result.append(entry)
+    return result
+
 
 def check_data(engine: Engine, sources: list[str]) -> list[str]:
     failures = []
@@ -67,7 +96,13 @@ def check_data(engine: Engine, sources: list[str]) -> list[str]:
             source = row["source"]
             if row["status"] != "succeeded":
                 failures.append(f"{source}:last_run_not_succeeded")
-            if not row["items"] or row["snapshots"] < row["items"]:
+            items, snapshots = row["items"], row["snapshots"]
+            if (
+                not isinstance(items, int)
+                or not isinstance(snapshots, int)
+                or not items
+                or snapshots < items
+            ):
                 failures.append(f"{source}:missing_items_or_snapshots")
             if (
                 row["data_at"] is None
