@@ -1,9 +1,11 @@
 # Offscroll progress
 
-Last resume check: 2026-11-16 (Asia/Tashkent). M3 is complete locally; M4 preflight
-identified a requirements conflict requiring an owner decision (ADR 0008).
+Last resume check: 2026-11-16 (Asia/Tashkent). M3 is merged. M4 P0 lanes,
+ranking, persistence and templates passed local/live acceptance; P1 provider choice
+is the remaining explicit stop (ADR 0009).
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
-The brief's embedded date is preserved verbatim; use the date above for this resume check.
+The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
+mission date remains historical. Use the date above for this resume check.
 
 ## Milestone checklist
 
@@ -28,8 +30,18 @@ The brief's embedded date is preserved verbatim; use the date above for this res
   - [x] Finish two public-source live checks and record final review/commits.
   - [x] Owner: run all three sources twice with YouTube credentials; show status/check-data.
   - [x] Record acceptance, rerun local checks, commit closeout, and tag `m3-done`.
-  - [ ] Owner: push branch/tag for fresh CI and merge; automation never pushes.
+  - [x] Owner: merged M3 into main at `35429cb`; automation did not push.
 - [ ] M4: Ranking, corroboration, persisted digests, and summaries.
+  - [x] Accept the owner-selected YouTube lane design in ADR 0008 and the brief.
+  - [x] HN/Wikipedia scoring, clustering, selection, config, and offline fixtures.
+  - [x] Isolated YouTube SQL ordering, one per channel, no stored/rendered ratio.
+  - [x] Migration 0004, atomic digest replacement, CLI lanes and explanations.
+  - [x] Retention-aware YouTube display and link-only archives; template summaries.
+  - [x] Local checks, PostgreSQL tests, migration round trip, real two-source build.
+  - [x] Verify two LLM provider options and prepare ADR 0009.
+  - [ ] Owner: choose one provider or explicitly defer P1.
+  - [ ] Implement chosen P1 provider if requested, final checks/report, tag `m4-done`.
+  - [ ] Owner: push M4 and obtain fresh CI; automation never pushes.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
 At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
@@ -37,12 +49,13 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m4-ranking`, starting at M3 closeout `de119e2` (`m3-done`).
-- Resume began with a clean working tree on `m3-sources`. Local `main` and the
-  cached `origin/main` reference still point to `b9c906d`; no remote fetch was
-  performed, so this does not establish the current remote merge state.
+- Current branch: `m4-ranking`, rebased onto M3's merge `35429cb` on `main`.
+- This implementation turn began clean at preflight commit `b90ef24`. Local and
+  cached remote main both point to `35429cb`, consistent with the owner's merge
+  confirmation. No remote fetch or push was needed.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
-- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`;
+- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`,
+  and the new `0004_digests.py`;
   do not edit applied migrations.
 - Python minor: 3.14, shared by `.python-version`, package metadata, tooling, and CI.
 - Runtime dependencies were unchanged by M2. M3 adds PyYAML and development-only
@@ -73,45 +86,93 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Open questions / owner actions
 
-1. **M3 acceptance passed:** owner supplied successful live results for runs 10–15.
-   No API key was shared with the agent. Owner pushes the completed branch/tag for fresh CI.
-2. **Before M4 implementation:** choose the concrete proposal in
-   [ADR 0008](decisions/0008-m4-youtube-scoring.md): defer YouTube from the M4
-   digest, or establish applicable permission for the original design.
-   Official policies were rechecked on 2026-11-16; hiding a computed metric
-   does not establish permission to compute it.
-3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
-4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
+1. **M4 provider choice:** choose one external provider or defer P1 using
+   [ADR 0009](decisions/0009-summary-provider.md). No credentials were requested
+   or read, no provider was selected, and no model API was called.
+2. **YouTube decision resolved:** [ADR 0008](decisions/0008-m4-youtube-scoring.md)
+   is accepted. The exclusion proposal is superseded; do not reopen that approval
+   gate. Public launch still needs the documented branding and retention work.
+3. Owner refreshes YouTube through the normal collector after applying migration
+   0004 so older rows gain explicit public status. The agent's live check used
+   only public HN/Wikipedia APIs; three-lane behavior has seeded PostgreSQL tests.
+4. Later explicit stops: hosting and project license. Owner pushes/merges M4 and
+   obtains fresh CI; local checks are not a claim of green remote CI.
 
-## M4 resume preflight: owner decision pending
+## Current milestone report: M4 P0 implemented; P1 choice pending
 
-The owner's continuation request advances work to M4. Before implementation,
-the recorded YouTube policy issue was checked against official sources and
-documented as a proposed decision in ADR 0008. The recommendation retains M3
-collection but limits M4 ranking and clustering to HN/Wikipedia, producing at
-most 12 selected items with the existing source caps. This changes scope and
-requires an explicit owner decision under brief section 8.
+The owner merged M3, rebased this branch, and selected an isolated YouTube lane
+on 2026-11-16. ADR 0008 and the M4 brief now record that accepted amendment,
+including official policy/branding URLs and verification dates. The previous
+exclusion proposal was not implemented.
 
-This preflight changes documentation only. No new dependencies, runtime behavior,
-schema, applied migrations, CI settings, or lint rules changed. M4 implementation
-and its acceptance tests remain outstanding; there is no M4 completion tag.
+Implementation commits: `c4e9546` (ranking/design) and `98fb61b`
+(persistence/CLI/retention), followed by the validation/provider-decision record.
 
-Validation: `make check` passed Ruff, strict mypy (15 source files), and 118 unit
-tests (15 integration tests deselected). `make migrate` and
-`make test-integration` passed against disposable PostgreSQL 18.7: 15 integration
-tests passed, 118 deselected. The container and temporary storage were removed.
-No `.env` or existing credentials were read; the owner's database was untouched.
+Built deterministic HN/Wikipedia percentiles, complete-link title/URL clustering,
+corroboration, lane/publisher caps, and explainable config snapshots. YouTube is
+ordered only within its SQL query; the ratio never leaves `ORDER BY`. Caps are
+6 HN, 5 Wikipedia, 4 YouTube, one video per channel; short lanes remain short.
+The new migration adds digests, items, and summary-cache tables. Database checks
+reject YouTube scores, clusters, summaries, copied titles/counts, and malformed
+link payloads. YouTube titles retain their exact API whitespace after refresh.
 
-Self-review: the proposal is explicitly pending, the project brief is preserved,
-and local branch state is distinguished from unqueried remote state.
-Top three risks:
+`build-digest [--week]` atomically replaces the selected window; rolling and ISO
+keys are separate. `digest` and `explain-digest` render labelled source sections;
+the former M2 query is `top hackernews`. Templates provide source context with
+input-hash reuse and zero tokens/cost. YouTube archives store only ID/link and
+hydrate current metadata while both archive and API data are younger than 30 days.
+The purge detaches expired archive references even for recently refreshed videos.
 
-1. Excluding YouTube reduces coverage and caps the digest at 12 items; clustering
-   and domain limits can reduce it further.
-2. YouTube permission and applicability remain unestablished; the owner cannot
-   resolve that by merely approving a hidden derived score.
-3. M3 push/merge and fresh CI remain unconfirmed; this M4 branch includes M3's
-   local commits and may need reconciliation after the owner's merge.
+Validation on 2026-11-16:
+
+- `make check`: Ruff and strict mypy passed (18 source files); 144 unit tests
+  passed, 30 integration tests deselected.
+- `make test-integration`: 30 passed, 144 deselected in 4.34s against disposable
+  PostgreSQL 18.7, with mocked HTTP.
+- Migration upgrade to 0004, downgrade to 0003, then upgrade to 0004 passed.
+  Applied migrations 0001–0003 were not changed.
+- Real HN/Wikipedia collection in a separate disposable database succeeded:
+  623 HN items and 58 Wikipedia topics. Two builds returned the same digest ID;
+  the saved digest contained 11 items, HN=6/Wikipedia=5/YouTube=0. This meets the
+  real-build acceptance of 10–15 items across at least two sources. It is not a
+  claim of live YouTube acceptance for M4.
+- Seeded integration acceptance produced all 15 slots (6/5/4), verified one video
+  per channel, lane isolation, NULL YouTube scores, rollback on failed rebuild,
+  metadata expiry, one-day age floor, explicit public-status eligibility, and cache reuse. The exact-expiry test uses the PostgreSQL
+  transaction clock to avoid comparing against a slightly later Python timestamp.
+- Temporary containers/storage were removed. No `.env` or existing API key was
+  read; the owner's database was not changed. No dependencies, CI, or lint
+  configuration changed. HTML export and graphical branding remain M5 scope.
+
+Self-review checked formula bounds/ties, untrusted-title escaping, SQL-only video
+ordering, JSON schema constraints (including JSON null), transaction rollback,
+window identity, and reference cleanup. Top three risks:
+
+1. YouTube policy wording retains the uncertainty accepted in ADR 0008. Stored
+   status reflects the last API observation; collection must refresh it. Fallbacks
+   are chronological videos or an API Compliance Audit, not a hidden shared score.
+2. Coverage is limited by collection and matching heuristics. HN/Wikipedia use
+   current metadata/observations, so historical rebuilds are not point-in-time
+   reconstructions, and source agreement cannot establish factual truth.
+3. Cleanup cannot run while the app is stopped. Daily purge, backup expiry, and
+   retention-aware M5 exports remain necessary before unattended publication.
+
+Try with exported settings:
+
+```bash
+make migrate
+.venv/bin/offscroll build-digest
+.venv/bin/offscroll digest
+.venv/bin/offscroll explain-digest
+.venv/bin/offscroll build-digest --week 2026-W46
+.venv/bin/offscroll digest --week 2026-W46
+```
+
+M4 is still open at the brief's LLM-provider decision. ADR 0009 compares Google
+Gemini and Groq using current official pricing, free limits, and terms. Provider
+requests, fake-provider validation/fallback tests, and a hard daily call cap are
+pending the choice, not silently claimed complete. No `m4-done` tag yet and no
+M5 work started. The owner may choose a provider or explicitly defer P1.
 
 ## Previous milestone report: M3 complete locally
 
