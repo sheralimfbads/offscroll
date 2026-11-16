@@ -186,6 +186,14 @@ this section's original shared-scale YouTube ranking design.
   limitations.
 
 M5 DELIVERY, DEPLOYMENT, PORTFOLIO POLISH
+Full-control implementation decisions (2026-11-16, ADRs 0009–0011): public HTML,
+JSON and web routes use template context and YouTube ID/link-only selections from
+day one. Rich recent YouTube metadata and reviewed Gemini prose remain local CLI
+features. This conservative reduced display avoids static-cache retention and
+unresolved free-tier regional terms. It supersedes the richer public display
+below where they conflict. Backups omit YouTube API data and model prose, expire
+within seven days, and restore only to an empty database. Static GitHub Pages is
+primary; manual publication and scheduled collection remain owner-disabled.
 - P0: `offscroll export-site` generates a static HTML (+ JSON) site for the
   latest digest into ./site, hostable on GitHub Pages or any static host.
 - P1: FastAPI app (src/offscroll/web): GET /healthz, GET /api/digests/latest,

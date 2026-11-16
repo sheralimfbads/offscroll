@@ -1,7 +1,8 @@
 # Offscroll progress
 
 Last resume check: 2026-11-16 (Asia/Tashkent). Full-control directive accepted.
-M4 P1 is implemented and validated; continue directly into M5 after local tagging.
+M4 is tagged locally at af171fc (m4-done). M5 implementation is under final
+validation on m5-delivery; no pushes or publication occurred.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -48,7 +49,8 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m4-ranking`, rebased onto M3's merge `35429cb` on `main`.
+- Current branch: `m5-delivery`, created from M4 tip `af171fc`.
+- M4 branch/tag remain at `af171fc`; M3 main merge is `35429cb`.
 - This implementation turn began clean at preflight commit `b90ef24`. Local and
   cached remote main both point to `35429cb`, consistent with the owner's merge
   confirmation. No remote fetch or push was needed.
@@ -85,6 +87,9 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 - 2026-11-16: ADR 0009 accepts stable Gemini 2.5 Flash-Lite, reviewed inputs,
   durable 50/day cap, template public delivery, and no billing.
+
+- 2026-11-16: ADR 0010 selects GitHub Pages, public templates/video links, and
+  optional read-only FastAPI; ADR 0011 selects filtered seven-day backups.
 
 ## Open questions / owner actions
 
@@ -189,7 +194,7 @@ make migrate
 .venv/bin/offscroll digest --week 2026-W46
 ```
 
-M4 is still open at the brief's LLM-provider decision. ADR 0009 compares Google
+Historical note, superseded by the M4 P1 report above: M4 was open at the brief's LLM-provider decision. ADR 0009 compares Google
 Gemini and Groq using current official pricing, free limits, and terms. Provider
 requests, fake-provider validation/fallback tests, and a hard daily call cap are
 pending the choice, not silently claimed complete. No `m4-done` tag yet and no

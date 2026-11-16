@@ -122,6 +122,10 @@ Source context. Global public delivery uses templates because offline generation
 does not establish an exemption from the EEA/CH/UK paid-service requirement.
 Groq is a future operational fallback, not an automatic second data recipient.
 
+Optional local hooks: `pipx install pre-commit`, then `pre-commit install`.
+The optional pre-commit tool runs the same lint/type/test and staged-secret checks
+before commits; it is not a runtime dependency.
+
 ## Limits, status and next steps
 
 This is a portfolio project, not a news verification service. Curated coverage,
