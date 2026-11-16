@@ -50,7 +50,7 @@ def test_initial_migration_is_applied():
             assert columns["error_summary"]["nullable"] is True
             assert columns["items_fetched"]["default"] is not None
             assert (
-                connection.scalar(text("SELECT version_num FROM public.alembic_version")) == "0002"
+                connection.scalar(text("SELECT version_num FROM public.alembic_version")) == "0003"
             )
     except SQLAlchemyError:
         # Never surface the underlying driver's connection string or parameters.

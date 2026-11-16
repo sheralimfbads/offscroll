@@ -13,6 +13,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from offscroll.connectors import get_connector
 from offscroll.connectors._base import Connector, ConnectorError, RawResponse
+from offscroll.connectors._http import QuotaError
+from offscroll.connectors.youtube import MissingKeyError, YouTubeSourceError
+from offscroll.retention import purge_expired
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,10 @@ def execute_run(
     """One transaction; a savepoint protects data while preserving failed-run logs."""
     started = time.monotonic()
     failure: str | None = None
+    # Run retention independently so a failed source cannot roll back the purge.
+    # HN remains unchanged; YouTube raw replay can never resurrect expired payloads.
+    if source == "youtube" or mode == "transform":
+        purge_expired(engine)
     with engine.begin() as connection:
         if mode == "transform":
             if run_id is None:
@@ -143,7 +150,7 @@ def execute_run(
             if row is None:
                 raise PipelineError("No stored run found. Ingest a source first.")
             source = row["source"]
-        connector = get_connector(source)
+        connector = get_connector(source, engine)
         if mode != "transform":
             run_id = int(
                 connection.execute(
@@ -197,7 +204,13 @@ def execute_run(
                     _transform(connection, connector, pages, summary, min_points)
         except Exception as exc:
             # Never format an exception that may contain a URL, payload, or credentials.
-            if isinstance(exc, ConnectorError):
+            if isinstance(exc, QuotaError):
+                failure = "youtube_quota_exceeded"
+            elif isinstance(exc, MissingKeyError):
+                failure = "missing_youtube_api_key"
+            elif isinstance(exc, YouTubeSourceError):
+                failure = exc.safe_summary
+            elif isinstance(exc, ConnectorError):
                 failure = "source_error"
             elif isinstance(exc, SQLAlchemyError):
                 failure = "database_error"
@@ -215,7 +228,7 @@ def execute_run(
         )
     logger.info(
         "event=run_summary run_id=%s source=%s status=%s "
-        "fetched=%s upserted=%s rejected=%s duration=%.3f",
+        "fetched=%s upserted=%s rejected=%s duration=%.3f error=%s",
         summary.run_id,
         summary.source,
         summary.status,
@@ -223,6 +236,7 @@ def execute_run(
         summary.upserted,
         summary.rejected,
         time.monotonic() - started,
+        failure or "none",
     )
     if failure:
         raise PipelineError(
@@ -248,13 +262,5 @@ def digest(engine: Engine) -> list[RowMapping]:
 
 
 def purge_raw(engine: Engine) -> int:
-    """Delete only expired raw responses; preserve items, snapshots, and run history."""
-    with engine.begin() as connection:
-        result = connection.execute(
-            text("""
-            DELETE FROM raw.api_responses AS r USING core.sources AS s
-            WHERE r.source = s.source
-              AND r.fetched_at < now() - s.raw_retention_days * interval '1 day'
-        """)
-        )
-        return result.rowcount
+    """Compatibility wrapper: purge all expired data and return raw rows deleted."""
+    return purge_expired(engine)["raw_responses"]

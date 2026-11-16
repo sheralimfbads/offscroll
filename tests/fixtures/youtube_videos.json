@@ -1,0 +1,30 @@
+{
+  "kind": "youtube#videoListResponse",
+  "items": [
+    {
+      "id": "AAAAAAAAAAA",
+      "snippet": {
+        "title": "A synthetic example",
+        "channelId": "UCAAAAAAAAAAAAAAAAAAAAAA",
+        "channelTitle": "Example channel",
+        "publishedAt": "2026-11-10T12:00:00Z",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/AAAAAAAAAAA/default.jpg"
+          }
+        }
+      },
+      "statistics": {
+        "viewCount": "100",
+        "commentCount": "4"
+      },
+      "status": {
+        "privacyStatus": "public",
+        "embeddable": false
+      },
+      "contentDetails": {
+        "duration": "PT5M"
+      }
+    }
+  ]
+}

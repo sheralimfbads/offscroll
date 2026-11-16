@@ -1,6 +1,6 @@
 # Offscroll progress
 
-Last resume check: 2026-11-15 (Asia/Tashkent).
+Last resume check: 2026-11-15 (Asia/Tashkent). M3 live acceptance passed; milestone closed locally.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's embedded date is preserved verbatim; use the date above for this resume check.
 
@@ -18,20 +18,31 @@ The brief's embedded date is preserved verbatim; use the date above for this res
   - [x] Re-run local checks and integration tests for the closeout changes.
   - [x] Resolve disposable CI test credentials through the owner's delegated decision (ADR 0004).
   - [x] Commit locally and tag `m2-done`; milestone report is the stop boundary.
-- [ ] M3: Wikipedia, curated-channel YouTube, quota/retention, run-all, status, and data checks.
+- [x] M3: Wikipedia, curated-channel YouTube, quota/retention, run-all, status, and data checks.
+  - [x] Migration `0003`, Wikipedia connector and complete-series validation.
+  - [x] Curated YouTube connector, safe YAML config, masked/header credentials, durable quota.
+  - [x] Expire raw data and individual YouTube snapshots, stale items, and channel cache.
+  - [x] `run-all`, `status`, `check-data`, source enablement, and manual source smoke commands.
+  - [x] Offline HTTP tests and PostgreSQL integration coverage; migration downgrade/upgrade.
+  - [x] Finish two public-source live checks and record final review/commits.
+  - [x] Owner: run all three sources twice with YouTube credentials; show status/check-data.
+  - [x] Record acceptance, rerun local checks, commit closeout, and tag `m3-done`.
+  - [ ] Owner: push branch/tag for fresh CI and merge; automation never pushes.
 - [ ] M4: Ranking, corroboration, persisted digests, and summaries.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
-No historical completion tags existed at this resume check. Do not fabricate them.
-Do not begin M3 until M2 closeout is complete and the owner says `continue`.
+At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
+The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m2-hackernews`, based on main's M1 merge `5f69540`.
+- Current branch: `m3-sources`, based on main's M2 merge `b9c906d`.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
-- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`; do not edit applied migrations.
+- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`;
+  do not edit applied migrations.
 - Python minor: 3.14, shared by `.python-version`, package metadata, tooling, and CI.
-- Runtime dependencies are unchanged by M2.
+- Runtime dependencies were unchanged by M2. M3 adds PyYAML and development-only
+  types-PyYAML, justified in ADR 0006.
 - Original live validation used a disposable database that was removed afterward.
   Its counts are historical evidence, not a claim about the owner's current database.
 - New instructions prohibit pushes. The owner pushes and merges; do not push branches or tags.
@@ -58,14 +69,94 @@ Do not begin M3 until M2 closeout is complete and the owner says `continue`.
 
 ## Open questions / owner actions
 
-1. **Before M3 live acceptance:** arrange YouTube credentials via exported environment
-   variables without reading `.env`; owner must provide access when needed.
+1. **M3 acceptance passed:** owner supplied successful live results for runs 10–15.
+   No API key was shared with the agent. Owner pushes the completed branch/tag for fresh CI.
 2. **Before M4 YouTube scoring:** resolve the derived-metrics policy concern in ADR 0001.
    Hiding a computed metric from display does not by itself establish permission to compute it.
 3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
 4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
 
-## Last task report
+## Current milestone report: M3 complete locally
+
+Owner-provided live output on 2026-11-15 establishes two successful `run-all`
+executions, successful `status` for all three sources, and a final `check-data` pass.
+These are owner-run results, not additional live requests made by the agent.
+
+| Source | First run | Second run | Fetched per run | Upserted per run | Rejected per run |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hacker News | 10 | 13 | 614 | 614 | 0 |
+| Wikipedia | 11 | 14 | 6,961 | 57 | 3 |
+| YouTube | 12 | 15 | 98 | 98 | 0 |
+
+All six runs succeeded. Both `run-all` calls ended with `check=passed`; the separate
+`check-data` command also passed. Wikipedia's fetched count includes discovery-list
+entries; the three incomplete daily series were rejected rather than filled with
+invented counts. Each YouTube run reserved 27 units using the channel cache.
+
+Final owner-provided `status` (cumulative database history, not just these two runs):
+
+| Source | Items | Snapshots | Raw responses | Daily quota units |
+| --- | ---: | ---: | ---: | ---: |
+| Hacker News | 634 | 3,076 | 5 | 0 |
+| Wikipedia | 57 | 228 | 268 | 0 |
+| YouTube | 98 | 294 | 95 | 142 |
+
+YouTube's 294 snapshots equal 98 videos across standalone successful run 9 and
+acceptance runs 12/15. Its daily total includes earlier failed requests as intended.
+No reset of the owner's database or quota counters was necessary.
+
+### Implementation and debugging evidence
+
+- Branch `m3-sources` starts at main's M2 merge `b9c906d`; implementation commits
+  are `7bd1e54`, `b78b129`, and `72032f5`.
+- Migration `0003` adds source policies, channel cache with retention timestamp,
+  and durable quota counters. Earlier migrations are unchanged. Its downgrade to
+  `0002` and upgrade back to `0003` passed in a disposable database.
+- Wikipedia selects candidates from seven completed daily top lists, then measures
+  complete 35-day series. YouTube resolves curated handles, reuses uploads playlists,
+  batches video requests, and reserves quota before each attempt.
+- `run-all`, `status`, `check-data`, source enablement, safe diagnostics, and independent
+  raw/core retention are implemented. ADRs 0005–0007 record their trade-offs.
+- Earlier owner YouTube attempts failed after 23, 12, and 12 units. A read-only cache
+  inspection found the first eleven configured handles, implicating the twelfth,
+  `@pbseons`. Mocks reproduce that pattern. The original discarded response cannot
+  prove its exact reason. Changing the candidate to `@eons` was followed by successful
+  live collection (run 9: 98 videos, 41 units), then the full acceptance above.
+- Diagnostics now retain code-owned error labels, resource, YAML position, and numeric
+  HTTP status through rollback. Remote messages, URLs, headers, and secrets stay out.
+- Prior agent live checks independently passed twice for public HN/Wikipedia only,
+  ending with 611 HN items/1,222 snapshots and 57 Wikipedia topics/114 snapshots in
+  a disposable database. Those historical counts are separate from the owner's data.
+
+### Closeout checks and review
+
+`make check`: Ruff passed; strict mypy passed for 15 source files;
+118 unit tests passed, 15 integration tests deselected (0.47s).
+`make test-integration`: 15 passed, 118 deselected (1.43s).
+The database check used a separate disposable container/volume and mocked HTTP;
+both were cleaned up afterward. No `.env` or API key was read, and the owner's
+database was not mutated during closeout.
+
+Reviewed documentation against the supplied logs, preserving the distinction between
+owner live evidence and agent tests. This closeout changes documentation only;
+no runtime, schema, dependency, CI, or lint configuration changes.
+
+Top three remaining risks:
+
+1. Editorial channel selection, upload caps, and rejection of incomplete Wikipedia
+   history limit coverage. Successful collection does not establish factual truth.
+2. Purging cannot run while the application is stopped. Schedule a daily purge and
+   matching backup retention before unattended YouTube collection.
+3. Quota counters cover collectors sharing this database; external tools can consume
+   the same Google project's quota. Cache updates assume a single collector.
+
+With exported settings, inspect the result using `offscroll status` and
+`offscroll check-data`; collect again with `offscroll run-all` when appropriate.
+Local completion tag: `m3-done`. The owner pushes and merges; fresh CI is still
+pending, not claimed green for the closeout commit. Stop here until owner `continue`.
+Before M4 scoring, resolve the YouTube derived-metrics concern recorded in ADR 0001.
+
+## Previous milestone report (M2)
 
 M2 closeout completed locally on 2026-11-15. Saved the brief verbatim, added progress
 and learning docs plus three ADRs, added a contact-bearing HN User-Agent, and added

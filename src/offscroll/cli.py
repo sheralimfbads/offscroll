@@ -7,12 +7,15 @@ import sys
 
 from pydantic import ValidationError
 from pydantic_settings import SettingsError
+from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from offscroll.config import load_settings
+from offscroll.config import SourceSettings, load_settings
 from offscroll.connectors._base import ConnectorError
 from offscroll.db import create_db_engine
-from offscroll.pipeline import PipelineError, digest, execute_run, purge_raw
+from offscroll.operations import check_data, run_all, source_status
+from offscroll.pipeline import PipelineError, digest, execute_run
+from offscroll.retention import purge_expired
 
 
 def nonnegative(value: str) -> int:
@@ -29,6 +32,15 @@ def positive(value: str) -> int:
     return number
 
 
+def print_checks(engine: Engine, sources: list[str]) -> bool:
+    failures = check_data(engine, sources)
+    for failure in failures:
+        print(f"check=failed reason={failure}")
+    if not failures:
+        print("check=passed")
+    return not failures
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -42,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
     transform.add_argument("--min-points", type=nonnegative, default=20)
     commands.add_parser("digest")
     commands.add_parser("purge-raw")
+    commands.add_parser("run-all")
+    commands.add_parser("status")
+    commands.add_parser("check-data")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="level=%(levelname)s %(message)s")
     # httpx INFO messages contain request URLs; source logs use only safe fields.
@@ -61,7 +76,23 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "transform":
             execute_run(engine, mode="transform", run_id=args.run_id, min_points=args.min_points)
         elif args.command == "purge-raw":
-            print(f"deleted={purge_raw(engine)}")
+            print(
+                " ".join(f"deleted_{name}={count}" for name, count in purge_expired(engine).items())
+            )
+        elif args.command == "run-all":
+            sources = SourceSettings().enabled_sources
+            results = run_all(engine, sources)
+            columns = ("source", "status", "run_id", "fetched", "upserted", "rejected")
+            print("\t".join(columns))
+            for result in results:
+                print("\t".join(str(result.get(column, "-")) for column in columns))
+            healthy = print_checks(engine, sources)
+            return 0 if healthy and all(r["status"] == "succeeded" for r in results) else 1
+        elif args.command == "status":
+            for row in source_status(engine, SourceSettings().enabled_sources):
+                print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in row.items()))
+        elif args.command == "check-data":
+            return 0 if print_checks(engine, SourceSettings().enabled_sources) else 1
         else:
             rows = digest(engine)
             if not rows:
@@ -75,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 )
     except ValidationError, SettingsError:
-        print("error=invalid_configuration Check exported DATABASE_URL.", file=sys.stderr)
+        print("error=invalid_configuration Check exported environment settings.", file=sys.stderr)
         return 1
     except (PipelineError, ConnectorError) as exc:
         print(f"error=pipeline message={json.dumps(str(exc))}", file=sys.stderr)

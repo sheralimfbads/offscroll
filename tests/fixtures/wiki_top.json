@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "articles": [
+        {
+          "article": "Example_topic",
+          "views": 200
+        },
+        {
+          "article": "Another_topic",
+          "views": 50
+        },
+        {
+          "article": "Main_Page",
+          "views": 999
+        },
+        {
+          "article": "Special:Search",
+          "views": 800
+        },
+        {
+          "article": "Broken",
+          "views": -1
+        }
+      ]
+    }
+  ]
+}

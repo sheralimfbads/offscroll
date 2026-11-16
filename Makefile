@@ -1,5 +1,6 @@
 PYTHON ?= .venv/bin/python
 PYTHON_MINOR := $(shell cat .python-version)
+SMOKE_SOURCE ?= hackernews
 COMPOSE = docker compose --env-file /dev/null -f compose.yaml
 
 .PHONY: venv check-python install lint format typecheck test check db-up db-down migrate test-integration smoke
@@ -41,4 +42,4 @@ test-integration:
 
 # Manual only: calls the public API and writes to the configured database.
 smoke: check-python
-	$(PYTHON) -m offscroll.cli run hackernews --page-cap 1
+	$(PYTHON) -m offscroll.cli run $(SMOKE_SOURCE) --page-cap 1
