@@ -23,7 +23,7 @@
   {% for lane, label in labels.items() %}
     <section class="lane" aria-labelledby="{{ lane }}-heading">
       <div class="section-heading"><div><p class="eyebrow">{% if lane == 'hackernews' %}01 / IDEAS & TECHNOLOGY{% elif lane == 'wikipedia' %}02 / THE WIDER CONTEXT{% else %}03 / SOMETHING TO WATCH{% endif %}</p>
-      <h2 id="{{ lane }}-heading">{% if lane == 'youtube' %}<a href="https://www.youtube.com/" rel="noreferrer"><img class="youtube-brand" src="{{ assets }}youtube-logo.svg" alt="" width="32" height="32"> YouTube</a>{% else %}{{ label }}{% endif %}</h2></div><span class="count">{{ lanes[lane]|length }} selections</span></div>
+      <h2 id="{{ lane }}-heading">{% if lane == 'youtube' %}<a href="https://www.youtube.com/" rel="noreferrer"><img class="youtube-brand" src="{{ assets }}youtube-logo.png" alt="YouTube" height="48"></a>{% else %}{{ label }}{% endif %}</h2></div><span class="count">{{ lanes[lane]|length }} selections</span></div>
       <ol class="stories">
       {% for item in lanes[lane] %}
         <li class="story"><span class="rank" aria-hidden="true">{{ '%02d'|format(item.lane_rank) }}</span><article>

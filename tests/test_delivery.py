@@ -85,7 +85,7 @@ def test_export_writes_public_html_json_and_local_assets(monkeypatch, tmp_path, 
     page = export_site(Mock(), output)
     assert page.exists()
     assert json.loads((output / "digest.json").read_text())["lanes"] == public_lanes(lanes)
-    assert (output / "youtube-logo.svg").exists() and (output / ".nojekyll").exists()
+    assert (output / "youtube-logo.png").exists() and (output / ".nojekyll").exists()
     export_site(Mock(), output)  # Rebuilding the same directory is supported.
     (output / "unrelated.txt").write_text("keep")
     with pytest.raises(DigestError):
@@ -144,3 +144,16 @@ def test_web_database_failure_is_generic_and_does_not_expose_details(monkeypatch
         assert response.status_code == 503
         assert response.json() == {"detail": "Database unavailable."}
         assert "PRIVATE" not in response.text
+
+
+def test_brand_asset_is_the_unmodified_official_full_logo(lanes):
+    import hashlib
+
+    from offscroll.delivery import PACKAGE
+
+    logo = PACKAGE / "static" / "youtube-logo.png"
+    assert hashlib.sha256(logo.read_bytes()).hexdigest() == (
+        "9d9674fdc18083dad15563ef34773ec5337db21aa4ce75c45977a894784d728f"
+    )
+    html = render_page(public_lanes(lanes), date="16 November 2026")
+    assert 'src="youtube-logo.png" alt="YouTube" height="48"' in html

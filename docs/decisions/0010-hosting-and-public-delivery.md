@@ -24,7 +24,7 @@ PostgreSQL service. No hosting or database account was created.
 
 ## Decision
 
-Export one HTML page, JSON, local CSS and the official YouTube icon. Use relative
+Export one HTML page, JSON, local CSS and the official YouTube logo. Use relative
 paths, escaped source text, safe HTTP(S) links, separate source sections and a
 finite ending. No downloaded thumbnails, article images/text, scripts, tracking,
 accounts or cookies. Light/dark responsive styles, semantic headings, skip link,
@@ -38,9 +38,18 @@ No claim of safety, suitability, endorsement or factual verification is made.
 
 Branding checked against [YouTube branding guidelines](https://developers.google.com/youtube/terms/branding-guidelines)
 (page updated 2025-08-20) and the linked [official brand resources](https://www.youtube.com/howyoutubeworks/resources/brand-resources/).
-The `video-youtube-red` SVG symbol's paths/colors/viewBox are reproduced unchanged
-in `src/offscroll/static/youtube-logo.svg`; it appears with the YouTube name and
-link. The icon is YouTube's brand asset, not an Offscroll license grant.
+The full-color almost-black PNG is copied byte-for-byte from the current
+[official logo bundle](https://www.gstatic.com/marketing-cms/52/7d/637fef5a4788a97747e6feabc4aa/youtube-logo.zip)
+linked by [YouTube Logo](https://brand.youtube/youtube-logo/) (retrieved 2026-11-16).
+Bundle member: `YouTube_Logo/Digital/01 Full Color/yt_logo_fullcolor_almostblack_digital.png`.
+The padded image appears at 48px high (the visible mark is about 24px high) on
+solid white with 16px additional clear space, linked to YouTube.
+The full logo is appropriate for a separate section; the icon-only variant's
+space-constrained/intermingled-content conditions do not fit this layout. The
+current brand page notes the updated red and defines clear space using the play
+triangle; artwork is not recolored, cropped or edited. The logo remains YouTube's
+brand asset, not an Offscroll license grant. A regression test pins its SHA-256.
+
 
 New runtime dependencies, each with one purpose:
 - FastAPI: typed read-only routes and consistent HTTP errors.

@@ -116,7 +116,7 @@ def export_site(engine: Engine, output: Path = Path("site")) -> Path:
     lanes = public_lanes(read_digest(engine))
     now = datetime.now(UTC)
     output.mkdir(parents=True, exist_ok=True)
-    allowed = {"index.html", "digest.json", "style.css", ".nojekyll", "youtube-logo.svg"}
+    allowed = {"index.html", "digest.json", "style.css", ".nojekyll", "youtube-logo.png"}
     if any(path.name not in allowed for path in output.iterdir()):
         raise DigestError("Export directory contains unrelated files; choose an empty directory.")
     _write_atomic(

@@ -50,7 +50,7 @@ git merge --ff-only origin/main
   nonpersonal input hashes before use. No live Gemini smoke was performed by the
   agent. Groq remains a future provider migration, not an automatic fallback call.
 - Do not set GEMINI_API_KEY in public workflows. Global delivery stays template-only.
-- Choose a license; no LICENSE file is present. The YouTube icon remains its owner's
+- Choose a license; no LICENSE file is present. The YouTube logo remains its owner's
   brand asset. Configure a private security-reporting contact/advisories channel.
 
 ## 3. Persistence, retention and backups
