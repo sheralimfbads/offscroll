@@ -1,10 +1,12 @@
 # Offscroll progress
 
-Last resume check: 2026-11-16 (Asia/Tashkent). Full-control directive accepted.
+Last resume check: 2026-11-17 (Asia/Tashkent). M6 incident task authorized.
 M4 and M5 are complete locally: m4-done at af171fc, m5-done on m5-delivery.
 Fresh-clone, container, backup/restore and local checks pass. No pushes or public
-deployment occurred. Remaining account/secret/merge/publication steps are in
-[OWNER_TODO.md](OWNER_TODO.md); there is no unfinished local milestone task.
+deployment occurred. M6 is complete locally on m6-youtube-fix: 201 unit and 39
+integration tests pass; authenticated collection, build, real four-video export
+and doctor are green. See INCIDENT-youtube.md. Other launch steps remain
+in [OWNER_TODO.md](OWNER_TODO.md).
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -53,13 +55,21 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Full reachable-history secret pattern scan; reviewed synthetic fixture only.
   - [x] Final container smoke, completion report and local m5-done tag.
   - [ ] Owner: push/merge, remote CI, credentials, publication, visual review/screenshot.
+- [x] M6: diagnose and repair the YouTube export, harden pipeline diagnostics.
+  - [x] Record pre-change stage counts; keep seven-day isolated eligibility.
+  - [x] Funnel warnings, visible empty states, safe auth failures and doctor.
+  - [x] Export provenance/content checks and source transaction/retry review.
+  - [x] Fix a live Wikipedia discovery gap with bounded coverage (ADR 0013).
+  - [x] Offline checks, PostgreSQL integration, live three-source export and doctor.
+  - [x] Final self-review, history scan, local commits and m6-done tag.
 
 At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
 The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m5-delivery`, created from M4 tip `af171fc`.
+- Current branch: `m6-youtube-fix`, created from M5 tip `7f629df`.
+- M5 branch/tag remain at `7f629df`; m5-delivery starts at M4 tip `af171fc`.
 - M4 branch/tag remain at `af171fc`; M3 main merge is `35429cb`.
 - This implementation turn began clean at preflight commit `b90ef24`. Local and
   cached remote main both point to `35429cb`, consistent with the owner's merge
@@ -100,6 +110,11 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 - 2026-11-16: ADR 0010 selects GitHub Pages, public templates/video links, and
   optional read-only FastAPI; ADR 0011 selects filtered seven-day backups.
+
+- 2026-11-17: ADR 0012 fixes export provenance and adds doctor/funnel diagnostics;
+  ADR 0008 addendum retains seven days because 70 eligible videos disprove thin data.
+- 2026-11-17: ADR 0013 permits one missing Wikipedia discovery list with a warning;
+  accepted article metrics still require all 35 daily points, never synthetic zeros.
 
 ## Open questions / owner actions
 
@@ -417,3 +432,85 @@ Skeptical review — top three residual risks:
 Local closeout: m5-done marks this report after all checks above. Billing was not
 enabled, schedules remain commented out, and no account, secret, push, merge or
 public deployment was performed. The owner-facing handoff is OWNER_TODO.md.
+
+## M6 implementation and pipeline review (complete locally)
+
+Pre-change evidence is committed in INCIDENT-youtube.md: the owner DB had four
+selected videos, while the exported two-source test artifact had none. Keep the
+seven-day eligibility window and do not infer public status for six legacy rows.
+The initial owner live command stopped before collection with invalid_configuration;
+a venv does not export settings. Hidden local prompts were supplied. The owner
+then explicitly superseded the read restriction (“YOU CAN READ WHATEVER YOU WANT”).
+The agent used local .env values only inside a redacting child process for live
+acceptance; no credential value/file content was printed or sent to the model.
+Normal application settings remain exported-environment-only.
+
+Implemented shared SQL selection/funnel predicates, source-specific empty states,
+empty-lane warnings, safe error reason propagation, prominent failure/freshness
+status, and read-only doctor including full JSON/HTML export matching. Export JSON
+includes only saved digest ID/generation time as provenance. A concurrent rebuild
+makes export fail safely. No new dependency, migration, model call or schedule.
+
+Pipeline audit:
+- Idempotency: keep unique source/item identity and one snapshot per item/run;
+  new collection runs intentionally add observations. Replaying old raw data cannot
+  overwrite newer metadata. Existing two-run/replay tests pass.
+- Retry/timeouts: DB connect timeout is five seconds; HN HTTP 15/5, Wiki/YouTube
+  30/5 seconds, at most three attempts. HN now respects Retry-After and disallows
+  redirects even on injected clients. Nonfinite/over-60-second delays stop safely.
+  Auth/permanent/quota errors are not retried; every YouTube attempt reserves quota.
+- Transactions: data writes remain savepoint-protected; normal failures preserve
+  a safe run record. Quota and retention use independent transactions. Cached
+  configured channels now retain active state when refresh fails. No partial
+  source-item writes are accepted as success.
+- Exit codes/logging: run-all remains nonzero on any source/quality failure and
+  continues independent sources; status/doctor highlight problems. Error reasons
+  are allowlisted, with no provider body/message/URL/key logging. Old arbitrary
+  error text is redacted. Failed raw responses are intentionally not persisted.
+- Export acceptance: test artifacts must stay in isolated directories. Doctor
+  checks both provenance/content and rendered HTML, detecting wrong DB artifacts
+  and partial/stale publication. YouTube remains ID/link-only publicly.
+
+Deliberately not redesigned: network fetches still run within the source transaction
+(simple savepoint semantics, bounded calls, but longer-held DB resources); raw API
+error bodies remain discarded (less forensic detail, no credential-leak risk);
+files are atomically replaced individually rather than switching an entire release
+directory (doctor detects mismatches); running collectors are not a historical
+point-in-time reconstruction. Disabling a curated channel stops future fetches;
+existing recent records can remain selectable until they age out. This is not the
+incident cause and changing the accepted eligibility policy needs a separately
+scoped curation decision. No queue/orchestrator, schema redesign or extra dependency
+was introduced merely for this incident.
+
+The first authenticated run refreshed 97 videos but failed for Wikipedia's missing
+November 11 discovery list. Direct checks found the adjacent discovery list and a
+complete article series available. ADR 0013 now allows one missing discovery day
+with warnings, still requiring complete 35-day article series for accepted metrics.
+Two unavailable discovery lists or an article HTTP failure remain fatal.
+
+Final live acceptance at 2026-11-16 19:32:17 UTC (November 17 local): run-all runs
+22/23/24 succeeded for HN/Wikipedia/YouTube, upserting 614/58/97 respectively.
+Wikipedia rejected two incomplete series and warned that six discovery days were
+available. YouTube used 27 units, daily total 106. Build, export and doctor all
+exited zero; every doctor check passed. Funnel: 113 total → 82 recent → 80 explicit
+status/public → 79 embeddable → 19 unique channels → four slots. Real site/index.html
+contains all four selected YouTube links; complete JSON/HTML match the saved digest
+with HN=6, Wikipedia=5, YouTube=4. No model call, push or public deployment occurred.
+
+Top three residual risks from skeptical self-review:
+1. One missing Wikipedia discovery day can omit topics; exact accepted view counts
+   remain complete and the coverage warning is explicit (ADR 0013).
+2. Doctor observes a moment in time; later source outages, concurrent rebuilds or
+   partial publication can invalidate it. A present key alone does not prove auth;
+   this acceptance includes two successful authenticated YouTube runs.
+3. YouTube policy interpretation remains uncertain (ADR 0008). Public ID/link-only
+   output limits functionality to preserve the accepted retention boundary.
+
+Final validation: make check passed (201 unit tests, strict mypy on 22 modules,
+Ruff); make test-integration passed 39 tests in a separate disposable PostgreSQL
+container, removed afterward. The in-sandbox ASGI test stalled; the unchanged full
+offline check passed outside the sandbox. Existing Starlette deprecation warning
+remains visible; no tests/lint rules or CI checks were weakened. Full reachable Git
+history secret scan reports zero findings (reviewed synthetic fixture exception
+from M5 unchanged). No new dependency or schema migration. m6-done marks this
+closeout; nothing was pushed. The five-line report is in INCIDENT-youtube.md.

@@ -104,3 +104,38 @@ and any force pushes after coordination; the agent never performs them. `make
 secrets` scans all reachable Git blobs for documented token/credential patterns;
 it cannot prove arbitrary secrets absent. Tracked dotenv files are flagged without
 reading their contents. Optional pre-commit hooks run the same local checks.
+
+## Empty YouTube lane / M6 doctor
+
+Run `.venv/bin/offscroll doctor` from the repository root after collection, build
+and export. `--site PATH` selects another export directory. The command makes no
+network requests and changes no database rows. It reports key presence only,
+Alembic version, last success/freshness, quota, each lane's candidates, the complete
+YouTube funnel, saved digest counts, and export consistency. Any failed check
+returns nonzero; a valid but empty enabled lane still needs operator attention.
+
+The root cause of INCIDENT-youtube.md was an export from a different test database.
+A new export carries digest ID/generation time; doctor compares it and the complete
+public payload and HTML against the connected database. Old exports without this
+provenance must be rebuilt. Use isolated output directories for test exports;
+never copy a test artifact over the owner's site/. A concurrent rebuild can make
+export/doctor fail safely; rerun after the build finishes.
+
+`run-all` now includes safe error codes; `status` highlights failed/stale sources
+and returns nonzero. A source run with HTTP 403 needs its safe reason code to
+separate quota, key restrictions, project API enablement and invalid keys. Unknown
+provider reasons stay generic. Zero error payloads in raw.api_responses is not
+proof of success: failed fetches roll back raw data and retain only safe run errors.
+Use exported settings; activating .venv does not load .env. Do not paste credentials
+into logs/chat. Run the four commands below in an already-configured terminal:
+
+```bash
+.venv/bin/offscroll run-all
+.venv/bin/offscroll build-digest
+.venv/bin/offscroll export-site
+.venv/bin/offscroll doctor
+```
+
+Stop the sequence on a failed command. A present API key is not validated by doctor;
+the preceding real run-all establishes authenticated collection. No billing,
+restriction removal, key rotation, or credential copying is automated.

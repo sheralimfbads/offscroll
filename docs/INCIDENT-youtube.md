@@ -37,6 +37,61 @@ no database mutation, credential inspection, .env read, or API request occurred.
 
 ## Repair and validation
 
-Pending implementation and owner-authenticated live acceptance. The agent has
-asked only for environment availability or owner-run commands, never key values.
-No live success or green doctor will be claimed without evidence.
+Implementation passes 201 unit and 39 PostgreSQL integration tests, Ruff and strict
+mypy. The first owner terminal attempt stopped before collection with
+invalid_configuration. After that, the owner explicitly authorized reading local
+configuration. The agent ran live acceptance inside a child process that loaded
+.env only internally, redacted credentials, and never emitted its contents. No
+application default was changed to load dotenv; Gemini was disabled for this run.
+
+The first authenticated attempt succeeded for YouTube (run 21: 97 fetched, zero
+rejected, 52 quota units), disproving invalid-key/restriction/API-enablement
+hypotheses. Wikipedia independently failed on the November 11 daily top list.
+Repeated direct checks confirmed HTTP 404 for that discovery date, 200 for November
+12 (1,000 articles), and a complete 35-day per-article series. ADR 0013 permits
+one unavailable discovery day with a visible warning, while preserving complete
+article metrics. Two unavailable discovery days or an article HTTP failure remain
+fatal. No dates or zero counts are invented.
+
+Final agent-run acceptance finished **2026-11-16 19:32:17 UTC**, November 17 local:
+
+| Source | Run | Status | Fetched | Upserted | Rejected |
+| --- | --- | --- | ---: | ---: | ---: |
+| Hacker News | 22 | succeeded | 614 | 614 | 0 |
+| Wikipedia | 23 | succeeded | 5,973 | 58 | 2 |
+| YouTube | 24 | succeeded | 97 | 97 | 0 |
+
+Wikipedia fetched includes discovery-list entries; two incomplete article series
+were rejected. The six-of-seven discovery coverage warning was emitted explicitly.
+YouTube used 27 units this run, 106 total for the current Pacific quota date.
+run-all and its data checks, build-digest, export-site and doctor each exited zero.
+
+Final `lane_funnel` (identical in build and doctor):
+
+```json
+{"total":113,"age":82,"snapshot":82,"freshness":82,"status":80,"public":80,"embeddable":79,"channel":79,"views":79,"unique_channels":19,"selected":4,"removed_age":31,"removed_snapshot":0,"removed_freshness":0,"removed_status":2,"removed_public":0,"removed_embeddable":1,"removed_channel":0,"removed_views":0,"removed_unique_channels":60,"removed_selected":15}
+```
+
+Doctor: `ok=true`, DB connected, schema 0004 at head, data_quality passed, all
+sources healthy, key present (boolean only), quota 106/7999. Candidate counts:
+HN 614, Wikipedia 67, YouTube as above. Latest digest 1 generated at
+2026-11-16T19:32:14.518102+00:00 contains 6 HN + 5 Wikipedia + 4 YouTube entries.
+Export provenance, complete public JSON and rendered HTML match that saved digest.
+An additional artifact assertion confirmed all four real video links appear in
+site/index.html and each public YouTube entry contains only lane_rank/video_id/url.
+No derived YouTube metric, score, category or copied API metadata is exported.
+
+Regression coverage includes SQL funnel boundaries and lane isolation, NULL scores,
+channel caps, visible empty states, stale/wrong exports, auth failure via
+MockTransport, safe reason codes, doctor failures and healthy operation. No tests,
+lint rules or CI checks were weakened. The sandbox's ASGI test client stalled; the
+same offline make check passed outside it. Integration used a separate disposable
+PostgreSQL container, which was removed. No new dependency or migration.
+
+## Five-line root-cause report
+
+1. Root cause: the M5 two-source test export overwrote site/, while the owner DB already selected four YouTube videos.
+2. Missing export provenance hid the mismatch; provenance checks, doctor, safe failures and visible empty states now expose it.
+3. Live YouTube refresh succeeded: 113 total → 82 recent → 80 explicit status → 79 embeddable → 19 channels → four rendered links.
+4. All live commands and doctor passed; make check passed 201 tests and make test-integration passed 39; seven-day YouTube eligibility stays unchanged.
+5. Remaining risks: reduced Wikipedia discovery coverage, point-in-time health/concurrent publication, and YouTube policy interpretation; see ADRs 0008, 0012 and 0013.
