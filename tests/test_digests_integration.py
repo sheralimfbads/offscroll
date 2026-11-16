@@ -413,3 +413,36 @@ def test_daily_gemini_cap_is_durable_and_stops_at_fifty():
                     {"day": day, "units": previous},
                 )
         engine.dispose()
+
+
+def test_public_export_and_filtered_backup_omit_restricted_data(seeded, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from offscroll.backups import backup_database
+    from offscroll.delivery import export_site
+
+    engine, connection, now = seeded
+    build_digest(engine, now=now)
+    connection.execute(
+        text("UPDATE core.items SET title='YOUTUBE_PRIVATE_MARKER' WHERE source='youtube'")
+    )
+    connection.execute(
+        text("UPDATE core.item_summaries SET model='gemini-test', summary='GEMINI_PRIVATE_MARKER'")
+    )
+    page = export_site(engine, tmp_path / "site")
+    assert "YOUTUBE_PRIVATE_MARKER" not in page.read_text()
+    assert "GEMINI_PRIVATE_MARKER" not in page.read_text()
+    monkeypatch.setattr(
+        "offscroll.backups.subprocess.run",
+        lambda *a, **kw: SimpleNamespace(returncode=0, stdout=b"-- schema\n"),
+    )
+    # Use this fixture's rollback-only transaction rather than start an independent snapshot.
+    monkeypatch.setattr(connection, "execution_options", lambda **kw: connection)
+    monkeypatch.setattr(connection, "begin", nullcontext)
+    path = backup_database(engine, load_settings(), tmp_path / "offscroll-test.sql")
+    sql = path.read_text()
+    assert "YOUTUBE_PRIVATE_MARKER" not in sql and "GEMINI_PRIVATE_MARKER" not in sql
+    assert "i.ytimg.com" not in sql and "channel1" not in sql
+    assert "video000000" in sql
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert "COMMIT;" in sql

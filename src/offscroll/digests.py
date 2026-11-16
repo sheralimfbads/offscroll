@@ -263,10 +263,12 @@ def read_digest(
     week: str | None = None,
     now: datetime | None = None,
     explain: bool = False,
+    purge: bool = True,
 ) -> dict[str, list[dict[str, object]]]:
     now = now or datetime.now(UTC)
     window = digest_window(now, week) if week else None
-    purge_expired(engine)
+    if purge:
+        purge_expired(engine)
     with engine.connect() as connection:
         if window:
             digest_id = connection.execute(

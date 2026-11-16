@@ -140,3 +140,20 @@ def test_summary_review_command_is_local(monkeypatch, capsys):
     assert main(["summary-inputs"]) == 0
     assert "Local review" in capsys.readouterr().out
     engine.dispose.assert_called_once()
+
+
+def test_export_and_backup_commands_use_explicit_paths(monkeypatch, capsys, tmp_path):
+    from offscroll import cli
+
+    engine = Mock()
+    monkeypatch.setattr(cli, "load_settings", lambda: Mock())
+    monkeypatch.setattr(cli, "create_db_engine", lambda _: engine)
+    exporter = Mock()
+    backup = Mock()
+    monkeypatch.setattr(cli, "export_site", exporter)
+    monkeypatch.setattr(cli, "backup_database", backup)
+    assert cli.main(["export-site", "--output", str(tmp_path)]) == 0
+    exporter.assert_called_once_with(engine, tmp_path)
+    assert cli.main(["backup", "--output", str(tmp_path / "copy.sql")]) == 0
+    assert backup.call_args.args[2] == tmp_path / "copy.sql"
+    assert "status=backed_up" in capsys.readouterr().out

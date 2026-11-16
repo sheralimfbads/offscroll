@@ -11,9 +11,11 @@ from pydantic_settings import SettingsError
 from sqlalchemy import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
+from offscroll.backups import backup_database, expire_backups, restore_database
 from offscroll.config import SourceSettings, load_settings
 from offscroll.connectors._base import ConnectorError
 from offscroll.db import create_db_engine
+from offscroll.delivery import export_site
 from offscroll.digests import build_digest, read_digest, render_digest, summary_review_inputs
 from offscroll.operations import check_data, run_all, source_status
 from offscroll.pipeline import PipelineError, digest, execute_run
@@ -66,6 +68,14 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("run-all")
     commands.add_parser("status")
     commands.add_parser("summary-inputs")
+    backup = commands.add_parser("backup")
+    backup.add_argument("--output", type=Path, required=True)
+    restore = commands.add_parser("restore")
+    restore.add_argument("--input", type=Path, required=True)
+    cleanup = commands.add_parser("expire-backups")
+    cleanup.add_argument("--directory", type=Path, default=Path("backups"))
+    export = commands.add_parser("export-site")
+    export.add_argument("--output", type=Path, default=Path("site"))
     commands.add_parser("check-data")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="level=%(levelname)s %(message)s")
@@ -74,6 +84,9 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     engine = None
     try:
+        if args.command == "expire-backups":
+            print(f"expired_backups={expire_backups(args.directory)}")
+            return 0
         engine = create_db_engine(load_settings())
         if args.command in ("ingest", "run"):
             execute_run(
@@ -103,6 +116,15 @@ def main(argv: list[str] | None = None) -> int:
                 print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in row.items()))
         elif args.command == "check-data":
             return 0 if print_checks(engine, SourceSettings().enabled_sources) else 1
+        elif args.command == "backup":
+            backup_database(engine, load_settings(), args.output)
+            print("status=backed_up")
+        elif args.command == "restore":
+            restore_database(engine, load_settings(), args.input)
+            print("status=restored")
+        elif args.command == "export-site":
+            export_site(engine, args.output)
+            print("status=exported")
         elif args.command == "summary-inputs":
             for entry in summary_review_inputs(engine):
                 print(json.dumps(entry, ensure_ascii=True))
@@ -135,6 +157,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except (PipelineError, ConnectorError) as exc:
         print(f"error=pipeline message={json.dumps(str(exc))}", file=sys.stderr)
+        return 1
+    except OSError:
+        print("error=filesystem Check local paths and permissions.", file=sys.stderr)
         return 1
     except SQLAlchemyError:
         print(
