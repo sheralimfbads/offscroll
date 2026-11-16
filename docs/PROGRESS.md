@@ -1,8 +1,10 @@
 # Offscroll progress
 
 Last resume check: 2026-11-16 (Asia/Tashkent). Full-control directive accepted.
-M4 is tagged locally at af171fc (m4-done). M5 implementation is under final
-validation on m5-delivery; no pushes or publication occurred.
+M4 and M5 are complete locally: m4-done at af171fc, m5-done on m5-delivery.
+Fresh-clone, container, backup/restore and local checks pass. No pushes or public
+deployment occurred. Remaining account/secret/merge/publication steps are in
+[OWNER_TODO.md](OWNER_TODO.md); there is no unfinished local milestone task.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -42,7 +44,15 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Owner chose Gemini free tier; ADR 0009 accepted.
   - [x] Implement Gemini, validate cache/cap/fallbacks, close locally with `m4-done`.
   - [ ] Owner: push M4 and obtain fresh CI; automation never pushes.
-- [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
+- [x] M5: Delivery, deployment decisions, runbook, and portfolio polish (local).
+  - [x] Static HTML/JSON and optional read-only web routes; official branding.
+  - [x] Non-root Docker image, disabled collection and manual Pages workflows.
+  - [x] Filtered backups and successful empty-database restore rehearsal.
+  - [x] README, architecture, compliance, runbook, owner steps and learning docs.
+  - [x] Fresh-clone README run with live HN/Wikipedia and all local checks.
+  - [x] Full reachable-history secret pattern scan; reviewed synthetic fixture only.
+  - [x] Final container smoke, completion report and local m5-done tag.
+  - [ ] Owner: push/merge, remote CI, credentials, publication, visual review/screenshot.
 
 At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
 The owner authorized M3 after merging M2 to main at `b9c906d`.
@@ -194,11 +204,9 @@ make migrate
 .venv/bin/offscroll digest --week 2026-W46
 ```
 
-Historical note, superseded by the M4 P1 report above: M4 was open at the brief's LLM-provider decision. ADR 0009 compares Google
-Gemini and Groq using current official pricing, free limits, and terms. Provider
-requests, fake-provider validation/fallback tests, and a hard daily call cap are
-pending the choice, not silently claimed complete. No `m4-done` tag yet and no
-M5 work started. The owner may choose a provider or explicitly defer P1.
+Historical provider note: P0 originally stopped for a provider choice. The owner
+subsequently selected Gemini and delegated completion; the M4 P1 report above
+supersedes that stop. M4 is tagged at af171fc, and M5 follows on m5-delivery.
 
 ## Previous milestone report: M3 complete locally
 
@@ -342,3 +350,70 @@ Top three risks from self-review:
 To try it with exported database settings: `make db-up`, `make migrate`, `make smoke`,
 then `.venv/bin/offscroll digest`. CI credential choice is resolved in ADR 0004.
 Local completion tag: `m2-done`. No push. Stop here and wait for owner `continue` before M3.
+
+## M5 acceptance evidence (2026-11-16)
+
+Implementation commits: 195d70d (delivery/recovery), 43dd633 (operations/docs),
+9026526 (TLS/scan/error hardening), af7c2e5 (current branding and fixture isolation).
+Branch m5-delivery starts directly from M4 tip af171fc; no push occurred.
+
+Static export and FastAPI share a field allowlist, escaped Jinja2 template,
+separate source lanes and finite ending. Public delivery uses template context
+and YouTube video ID/link only; local CLI retains reviewed model output and fresh
+API metadata. This intentionally trades richer previews/prose for conservative
+retention and regional-policy handling. The current full YouTube logo is copied
+unchanged from its official bundle; its SHA-256 is tested. No media is downloaded.
+FastAPI provides typed routes, Uvicorn runs ASGI, and Jinja2 supplies autoescaped
+shared HTML; these are the only new runtime dependencies. No M5 schema change.
+
+Validation:
+- make check passes: Ruff, strict mypy (21 source files), 182 unit tests.
+- make test-integration passes: 33 PostgreSQL tests with mocked HTTP, including
+  lane isolation, public export/backup exclusions, cache/quota and retention.
+- Backup rehearsal: a real collection of 619 HN items and 58 Wikipedia topics
+  produced 11 saved selections; pg_dump-schema/filtered-data backup restored to
+  an empty disposable database and exported the same 11-item digest.
+- Fresh local clone at af7c2e5 followed README commands make setup, make
+  collect-public, make site, with a new venv and isolated Compose project/volume.
+  Real collection: HN 618, Wikipedia 58 (two incomplete candidates rejected),
+  check-data passed; 11-item static site built. Its make check/test-integration
+  also passed (182/33), and history scan reported 208 blobs, zero findings.
+- Final fresh-clone Docker build and HTTP smoke passed: UID 10001, read-only
+  filesystem, dropped capabilities, /healthz, /, latest JSON, CSS and official
+  logo all served successfully. Temporary containers and volumes were removed.
+  The current generated artifact is site/index.html (11 items).
+- Original-workspace reachable-history scan covered 214 blobs with zero
+  unexpected findings before the final report. It includes local tool checkpoints;
+  one immutable blob contains the intentional scanner-test URL, documented in
+  SECURITY.md. The detector still flags that pattern in other content. No tracked
+  dotenv file was found (only .env.example); no .env was read. Pattern scanning
+  cannot prove arbitrary secrets absent.
+- Local documentation links and diff whitespace checks pass. Export markup has
+  no scripts, embeds or external assets. Text contrast checks passed for both
+  themes; automated HTML/HTTP checks are not a browser/accessibility audit.
+
+Failures investigated rather than hidden: one live Wikipedia call failed, then
+an isolated 67-response diagnostic and subsequent full collections succeeded.
+Running integration tests after real collection exposed an M2 fixture that removed
+only HN rows while counting all sources. Its rollback-only setup now clears all
+source rows; existing assertions are unchanged and the populated-DB run passes.
+A brand download timeout succeeded with a longer bounded request. Automatic
+approval review also timed out on two commands; simpler retries completed the
+work, so no action remains blocked by approval review. Starlette emits one
+upstream httpx TestClient deprecation warning; it is recorded, not suppressed.
+
+Skeptical review — top three residual risks:
+1. YouTube's ordering-policy interpretation remains uncertain (ADR 0008); the
+   owner must read the policies before launch and may choose chronological videos
+   or an API Compliance Audit. Public link-only output reduces retention exposure.
+2. Gemini privacy depends on exact-input human review, and a key cannot prove
+   free billing/region settings. No live Gemini request was made. Public templates
+   avoid claiming offline batching exempts a global site from regional terms.
+3. Operations need an owner: schedules are disabled, purge/backup expiry require
+   monitoring, and remote CI/deployment/visual review have not run. OWNER_TODO.md
+   gives exact merge-commit order, secret setup, schedule and Pages commands,
+   policy/audit steps, license decision and screenshot tasks. No license was added.
+
+Local closeout: m5-done marks this report after all checks above. Billing was not
+enabled, schedules remain commented out, and no account, secret, push, merge or
+public deployment was performed. The owner-facing handoff is OWNER_TODO.md.
