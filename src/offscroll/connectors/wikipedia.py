@@ -1,5 +1,6 @@
 """Wikipedia pageviews. Project policy: retain raw responses for 90 days."""
 
+import logging
 import time
 import unicodedata
 from collections import defaultdict
@@ -10,10 +11,11 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from offscroll.connectors._base import ConnectorError, ParseResult, RawResponse, Record
-from offscroll.connectors._http import request_json
+from offscroll.connectors._http import SourceHTTPError, request_json
 
 BASE_URL = "https://wikimedia.org"
 PREFIX = "/api/rest_v1/metrics/pageviews"
+logger = logging.getLogger(__name__)
 NAMESPACES = {
     "special",
     "talk",
@@ -155,21 +157,37 @@ class WikipediaConnector:
     ) -> list[RawResponse]:
         end = end_date or datetime.now(UTC).date() - timedelta(days=1)
         pages: list[RawResponse] = []
+        requested = False
 
         def get(path: str) -> dict[str, object]:
-            if pages:
+            nonlocal requested
+            if requested:
                 time.sleep(1)  # Serial requests, at most 60/minute before network latency.
+            requested = True
             payload = request_json(client, BASE_URL + path)
             pages.append(RawResponse(path, datetime.now(UTC), 200, payload, parse(payload).fetched))
             return payload
 
         totals: dict[str, int] = defaultdict(int)
+        missing_days = 0
         for offset in range(6, -1, -1):
             day = end - timedelta(days=offset)
-            payload = get(f"{PREFIX}/top/en.wikipedia.org/all-access/{day:%Y/%m/%d}")
+            try:
+                payload = get(f"{PREFIX}/top/en.wikipedia.org/all-access/{day:%Y/%m/%d}")
+            except SourceHTTPError as exc:
+                if exc.status_code != 404:
+                    raise
+                # Discovery only: never substitute zero for missing article metrics.
+                missing_days += 1
+                logger.warning("event=wikipedia_discovery_missing date=%s http_status=404", day)
+                continue
             articles, _ = top_articles(payload)
             for article in articles:
                 totals[normalize_title(article.article)] += article.views
+        if missing_days > 1:
+            raise ConnectorError("Wikipedia requires at least six of seven daily discovery lists.")
+        if missing_days:
+            logger.warning("event=wikipedia_discovery_coverage available_days=6 expected_days=7")
         candidates = sorted(totals, key=lambda title: (-totals[title], title))[:60]
         if not candidates:
             raise ConnectorError("Wikipedia returned no article candidates.")

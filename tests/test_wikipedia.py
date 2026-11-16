@@ -85,3 +85,58 @@ def test_fetch_is_serial_top_seven_days_then_bounded_candidates(monkeypatch):
 def test_missing_daily_data_fails_clearly():
     with pytest.raises(ConnectorError, match="no pageview"):
         parse({"items": []})
+
+
+def test_one_missing_discovery_day_warns_but_keeps_complete_series(monkeypatch, caplog):
+    pauses = []
+    monkeypatch.setattr("offscroll.connectors.wikipedia.time.sleep", pauses.append)
+    top = json.loads((FIXTURES / "wiki_top.json").read_text())
+    daily = json.loads((FIXTURES / "wiki_daily.json").read_text())
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        if request.url.path.endswith("2026/11/08"):
+            return httpx.Response(404, json={"detail": "untrusted provider text"})
+        return httpx.Response(200, json=top if "/top/" in request.url.path else daily)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        pages = connector.fetch(client, end_date=date(2026, 11, 14))
+    assert len(pages) == 8  # Six discovery lists and two complete article histories.
+    assert len(requests) == 9
+    assert len(pauses) == 8  # Also pause after the first request's 404.
+    assert "available_days=6 expected_days=7" in caplog.text
+    assert "untrusted provider text" not in caplog.text
+    assert parse(pages[-1].payload).records[0].views == 1400
+
+
+@pytest.mark.parametrize("status,missing", [(404, 2), (403, 1), (404, 7)])
+def test_inadequate_discovery_or_auth_failure_remains_fatal(monkeypatch, status, missing):
+    monkeypatch.setattr("offscroll.connectors.wikipedia.time.sleep", lambda _: None)
+    top = json.loads((FIXTURES / "wiki_top.json").read_text())
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        assert "/top/" in request.url.path  # Never start article collection.
+        return httpx.Response(status if len(requests) <= missing else 200, json=top)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(respond)) as client,
+        pytest.raises(ConnectorError),
+    ):
+        connector.fetch(client, end_date=date(2026, 11, 14))
+
+
+def test_missing_article_history_is_not_a_discovery_gap(monkeypatch):
+    monkeypatch.setattr("offscroll.connectors.wikipedia.time.sleep", lambda _: None)
+    top = json.loads((FIXTURES / "wiki_top.json").read_text())
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(200 if "/top/" in r.url.path else 404, json=top)
+            )
+        ) as client,
+        pytest.raises(ConnectorError, match="HTTP 404"),
+    ):
+        connector.fetch(client, end_date=date(2026, 11, 14))
