@@ -397,3 +397,33 @@ Request parameters and `videoChartNotFound` follow the
 [videos.list reference](https://developers.google.com/youtube/data/reference/rest/v3/videos/list?hl=en);
 quota handling follows the
 [API error reference](https://developers.google.com/youtube/data/reference/rest/v3/errors?hl=en).
+
+## Build a digest (M4)
+
+With database settings already exported (the application does not read `.env`):
+
+```bash
+make migrate
+.venv/bin/offscroll build-digest
+.venv/bin/offscroll digest
+.venv/bin/offscroll explain-digest
+# An explicit ISO week; rebuild replaces the saved week:
+.venv/bin/offscroll build-digest --week 2026-W46
+.venv/bin/offscroll digest --week 2026-W46
+# The original M2 single-source query:
+.venv/bin/offscroll top hackernews
+```
+
+Collect sources first with `offscroll run-all` when fresh data is needed.
+Pre-M4 YouTube rows require a normal collection refresh before eligibility because
+M4 requires explicit public status. Building itself uses the database only.
+The digest has separate HN (max 6), Wikipedia (max 5), and YouTube (max 4) lanes;
+short lanes are not backfilled. YouTube has one video per channel, no common
+score, no cross-source clustering, and no saved or displayed derived metric.
+Archived YouTube entries become link-only at 30 days. Schedule `purge-raw` daily
+before unattended use; include backups in retention planning.
+
+Templates are labelled source context, not AI summaries. LLM provider selection
+is pending. See [ranking formulas and limitations](docs/RANKING.md) and
+[the accepted YouTube lane decision](docs/decisions/0008-m4-youtube-scoring.md).
+M4 provides a CLI display; the HTML site and graphical branding are M5 work.

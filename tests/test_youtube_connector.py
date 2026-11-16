@@ -314,3 +314,15 @@ def test_invalid_upload_diagnostic_locates_the_playlist(fetch_setup):
         str(error.value) == "youtube_invalid_upload_metadata resource=playlistItems channel_index=1"
     )
     assert key not in repr(error.value)
+
+
+def test_title_and_thumbnail_are_preserved_exactly():
+    payload = json.loads((FIXTURES / "youtube_videos.json").read_text())
+    raw = payload["items"][0]
+    raw["snippet"]["title"] = "  Exact API title  "
+    result = parse(payload)
+    assert result.records[0].title == raw["snippet"]["title"]
+    assert result.records[0].metadata["privacy_status"] == "public"
+    assert result.records[0].metadata["thumbnails"] == {
+        size: data["url"] for size, data in raw["snippet"]["thumbnails"].items()
+    }

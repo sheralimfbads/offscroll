@@ -152,12 +152,65 @@ summary or `status`. The index counts entries in YAML from one, including disabl
 entries. For example, an unresolved twelfth handle plus eleven cached playlists
 uses twelve requests. Counts can localize a fault; they cannot prove its cause.
 
-## M4 preflight: a requirements decision before implementation
+## M4: Select and save separate source lanes
 
-On 2026-11-16, M4 resumed from the completed M3 pipeline. No ranking code has
-been added yet. A **derived metric** is a new number computed from another
-source's data, such as video views divided by age. Keeping that number internal
-does not establish permission to calculate it. ADR 0008 records the official
-policy check and a proposed two-source digest while YouTube permission is
-unresolved. This trades video coverage for an implementation that does not
-depend on that permission. The full M4 walkthrough will follow implementation.
+### Data flow and module map
+
+`build-digest` reads the latest stored observations in a UTC window. `ranking.py`
+turns HN/Wikipedia metrics into source percentiles, groups similar cross-source
+stories, and selects representatives under lane/publisher caps. YouTube takes a
+separate SQL route in `digests.py`: recent public/embeddable videos are ordered
+within that lane, with one per channel. No YouTube arithmetic result leaves SQL.
+
+`digests.py` saves the window, config, selected items and HN/Wikipedia explanations
+in one transaction. Migration `0004` adds `digests`, `digest_items`, and
+`item_summaries`; earlier migrations stay unchanged. `summaries.py` supplies
+source-context templates and an interface for a future chosen provider.
+`retention.py` detaches old YouTube archive references. `cli.py` provides
+`build-digest`, `digest`, and `explain-digest`; the old HN query is `top hackernews`.
+
+### Worked example (synthetic)
+
+Three HN stories have points [10, 50, 100] and comments [5, 30, 10]. The middle
+story's percentiles are 0.5 and 1, so momentum is `0.6*0.5 + 0.4*1 = 0.7`.
+If its title matches a Wikipedia topic, a two-source cluster gets a 1.15
+multiplier. The best representative occupies its own lane; the other is linked
+as additional coverage, without claiming verification.
+
+A YouTube video has 1,000 API views and was published two days ago. SQL uses the
+ratio solely to order that lane. Only its ID/link and lane position enter the
+digest row. Recent reads attach current title, exact counts, and thumbnail URLs;
+a digest aged 30 days displays only the video link, even if collection refreshed
+that video today. Caps produce up to 6 HN + 5 Wikipedia + 4 YouTube entries and
+never transfer unused slots between sources.
+
+### Five interview questions
+
+1. **Why separate the lanes?** Source policies and attention signals differ.
+   Isolation avoids a misleading common score, at the cost of unfilled slots.
+2. **Why average tied ranks?** Equal raw metrics should receive equal scores;
+   deterministic identity tie-breaks make output repeatable without changing scores.
+3. **Why complete-link clusters?** Every member must match every other member.
+   This limits accidental chains, but can miss broad stories phrased differently.
+4. **Why persist config?** It makes a saved result explainable when later weights
+   change. A rebuild deliberately replaces the selected window, not the history of
+   all algorithm experiments. Rolling and ISO builds have distinct identities.
+5. **Why store only YouTube links in archives?** It avoids another copy of expiring
+   API data. The trade-off is that recent displays change with source refreshes,
+   then lose metadata rather than pretending to preserve an immutable snapshot.
+
+### Glossary and practice
+
+**Percentile:** relative rank inside one candidate pool. **Jaccard:** intersection
+of token sets divided by their union. **Lane:** one source's independent display
+section. **Complete-link:** every pair must match. **Hydration:** adding current
+source fields to a stored link at read time. **Input hash:** a stable fingerprint
+used to reuse the same template result. **Atomic replacement:** old or new rows
+are visible together, never a half-written digest.
+
+Try `make migrate`, `offscroll build-digest`, `offscroll digest`, and
+`offscroll explain-digest` with exported settings. See [RANKING.md](RANKING.md)
+for historical-window limitations and [ADR 0008](decisions/0008-m4-youtube-scoring.md)
+for the accepted interpretation and fallback options. LLM integration remains
+pending the owner's provider decision; templates do not claim to summarize unseen
+article bodies.
