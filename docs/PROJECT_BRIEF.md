@@ -34,22 +34,24 @@ Stack: Python (.python-version), httpx, pydantic(-settings), SQLAlchemy Core +
 psycopg 3, Alembic, pytest, ruff, mypy strict, argparse CLI.
 M2 may be in progress or not started: detect it.
 
-4. WORKING PROTOCOL
-- Autonomous inside a milestone. Per task: implement, test, make check and
-  make test-integration green, self-review your diff as a skeptical senior
-  engineer, update PROGRESS.md and HOW_IT_WORKS.md, commit.
-- No shortcuts: do not weaken or skip tests; no noqa / type: ignore /
-  except Exception just to get green without a comment explaining why; do not
-  change CI or lint config to get green without noting it in PROGRESS.md.
-- New dependencies: allowed with a one-line ADR justification if mainstream and
-  maintained (fastapi, uvicorn, jinja2, pyyaml). Anything needing an account or
-  payment: stop and ask.
-- Tests: unit tests offline (no real network); integration tests with Postgres;
-  fixtures in tests/fixtures; a `make smoke` target for manual live-API checks
-  (never in CI).
-- Milestone done = acceptance criteria met, make check + make test-integration
-  green, docs updated, git tag m<N>-done, and a printed report: what was built,
-  exact commands to try it, top risks, open questions.
+4. WORKING PROTOCOL (owner full-control amendment, 2026-11-16)
+- Proceed autonomously through M4 and M5; do not stop between milestones.
+  Implement, test, make check and make test-integration green, review the diff,
+  update PROGRESS.md/HOW_IT_WORKS.md, commit locally and tag each completed
+  milestone. Start m5-delivery from the tip of m4-ranking. Never push.
+- Resolve routine conflicts, policy issues and ambiguity conservatively, preserving
+  useful reduced features. Record significant choices in an ADR with context,
+  options, decision, residual risk, fallback, official URLs and verification date,
+  plus a one-line decisions-log entry in PROGRESS.md.
+- No weakened tests, unexplained noqa/type: ignore, or CI/lint changes to hide failures.
+  Unit tests stay offline; integration tests use PostgreSQL; manual smoke is not CI.
+- Dependencies need a one-line ADR justification. Do not enable billing or schedules.
+- Defaults: Gemini free tier for optional offline summaries; static GitHub Pages
+  export as primary hosting target; no license file yet. OWNER_TODO.md records
+  account, credential, deployment, license and other owner-only actions.
+- Completion includes full-history secret scan, compliance mapping, fresh-clone
+  README test, runbook/restore test, architecture and learning docs, and exact
+  owner commands. Remote CI/deployment cannot be claimed without owner execution.
 
 5. MILESTONES (P0 must ship, P1 should, P2 nice; if behind, cut P2 first)
 
@@ -162,9 +164,11 @@ this section's original shared-scale YouTube ranking design.
 - ADR 0008 records accepted residual uncertainty, official URL/update/retrieval
   dates, and fallbacks: chronological recent videos or API Compliance Audit.
 - Summaries (P1): Summarizer interface. TemplateSummarizer (no AI, deterministic,
-  default) plus ONE LLM provider via env var. Before choosing a provider, verify
-  current pricing, free tier, limits and terms for 2-3 providers, write the ADR,
-  then STOP and ask the owner to choose. LLM rules: input is only title,
+  default) plus ONE LLM provider via env var. Provider chosen: Gemini API free tier (ADR 0009), enabled only with
+  GEMINI_API_KEY, with a configurable stable Flash-Lite model and hard cap of
+  50 calls/day. Billing must remain disabled. Verify model/terms before coding.
+  Operational fallback is Groq free tier, then deterministic templates; API errors
+  and invalid Gemini outputs immediately use templates without retries. LLM rules: input is only title,
   source, domain and the source-provided description/extract (never scraped
   article bodies); output JSON validated by pydantic ({summary: max 2 neutral
   sentences in its own words}); on invalid output fall back to the template;
@@ -199,14 +203,14 @@ M5 DELIVERY, DEPLOYMENT, PORTFOLIO POLISH
   disabled until the owner confirms secrets and hosting.
 - Hosting: write docs/decisions/00xx-hosting.md with 2-3 options verified from
   official docs (current free tiers, limits, whether a payment card is
-  required). Prefer options needing no card. Then STOP and ask the owner to
-  choose. After the choice: implement it, scheduled pg_dump backups with a
+  required). Prefer options needing no card. Default to GitHub Pages static export; record alternatives without waiting.
+  For the chosen target: implement it, scheduled pg_dump backups with a
   tested restore, and docs/RUNBOOK.md.
 - P0 polish: README top section (pitch, screenshot placeholder, architecture
   mermaid, stack, run in 3 commands, key design decisions, honest limitations,
   roadmap: news RSS, Google Fact Check API, X connector, dbt, Dagster),
   docs/ARCHITECTURE.md, Dependabot config, SECURITY.md, pre-commit hooks,
-  secret scan of git history. Ask the owner about the license.
+  secret scan of git history. Record the pending license in docs/OWNER_TODO.md; do not add a license file.
 - Acceptance: a fresh clone following the README produces a local site with a
   real digest; CI green; static export builds.
 
@@ -231,12 +235,12 @@ decision using the existing template.
 - Paraphrase only; never copy article text or images; link out to originals.
 - Never claim anything is verified or true; only "covered by N sources".
 
-8. STOP AND ASK THE OWNER (otherwise keep going)
-Needs for accounts, payment or credentials; hosting choice; LLM provider
-choice; license; changing already-applied migrations (create a new migration
-instead); scope additions; conflicting requirements; or the same failure
-persisting after two attempts (then summarize the error, what you tried, and
-the options).
+8. PHYSICAL BLOCKERS ONLY (owner full-control amendment, 2026-11-16)
+Stop only the affected action for account creation, payments, credentials/secrets,
+pushing/merging, destructive or irreversible data actions, or the same failure
+persisting after three genuinely different attempts. Record it in PROGRESS.md
+and continue all unaffected work. No routine design, provider, hosting, license,
+or milestone-boundary approval gates remain. Never read .env, including indirectly.
 
 9. DEFINITION OF DONE (project)
 CI green; a real digest generated from live data; a static or deployed site;

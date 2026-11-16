@@ -214,3 +214,17 @@ for historical-window limitations and [ADR 0008](decisions/0008-m4-youtube-scori
 for the accepted interpretation and fallback options. LLM integration remains
 pending the owner's provider decision; templates do not claim to summarize unseen
 article bodies.
+
+### M4 P1: optional Gemini adapter
+
+A local review hash approves exactly four public metadata fields. With an exported
+key and matching approval, the digest checks the input/model/prompt cache, reserves
+one of 50 UTC daily attempts in a separate transaction, and sends JSON data plus
+a higher-priority system instruction to Gemini. Pydantic checks the JSON response;
+errors or invalid prose become template context. Successful rows record the model,
+version, tokens and zero free-tier cost. YouTube never enters this path. A rollback
+cannot refund a call already made. The separate transaction makes the cap durable
+but may conservatively count a process crash before HTTP as an attempt. Templates
+are used for global delivery pending clearer regional permission; local CLI output
+can show reviewed AI summaries. Tests use fake responses, including an instruction
+injection title; no test needs an API account.

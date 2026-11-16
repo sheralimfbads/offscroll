@@ -332,3 +332,84 @@ def test_unconfirmed_status_and_expired_observations_are_ineligible(seeded):
         "video000005",
         "video000006",
     ]
+
+
+def test_provider_cache_precedes_generation_and_records_usage(seeded):
+    from offscroll.summaries import Summary, cache_key
+
+    engine, connection, now = seeded
+
+    class FakeProvider:
+        model = "fake-provider"
+        prompt_version = "test-v1"
+        calls = 0
+
+        def summarize(self, item):
+            self.calls += 1
+            return Summary(
+                "A neutral source description.",
+                self.model,
+                self.prompt_version,
+                cache_key(item, self.model, self.prompt_version),
+                20,
+                10,
+                0,
+            )
+
+    provider = FakeProvider()
+    build_digest(engine, now=now, summarizer=provider)
+    assert provider.calls == 11
+    build_digest(engine, now=now, summarizer=provider)
+    assert provider.calls == 11
+    assert connection.scalar(text("SELECT sum(input_tokens) FROM core.item_summaries")) == 220
+    assert read_digest(engine, now=now)["hackernews"][0]["summary_label"] == "AI-generated summary"
+
+
+def test_daily_gemini_cap_is_durable_and_stops_at_fifty():
+    from offscroll.summaries import GeminiBudget
+
+    if not os.getenv("DATABASE_URL"):
+        pytest.skip("DATABASE_URL is unset")
+    engine = create_db_engine(load_settings())
+    with engine.connect() as connection:
+        day = connection.scalar(text("SELECT (clock_timestamp() AT TIME ZONE 'UTC')::date"))
+        previous = connection.scalar(
+            text("SELECT units FROM raw.api_quota_usage WHERE date=:day AND source='gemini'"),
+            {"day": day},
+        )
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO raw.api_quota_usage VALUES (:day, 'gemini', 49) "
+                    "ON CONFLICT(date, source) DO UPDATE SET units=49"
+                ),
+                {"day": day},
+            )
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            assert GeminiBudget(engine).reserve()
+            transaction.rollback()
+        assert not GeminiBudget(engine).reserve()
+        with engine.connect() as connection:
+            assert (
+                connection.scalar(
+                    text(
+                        "SELECT units FROM raw.api_quota_usage WHERE date=:day AND source='gemini'"
+                    ),
+                    {"day": day},
+                )
+                == 50
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM raw.api_quota_usage WHERE date=:day AND source='gemini'"),
+                {"day": day},
+            )
+            if previous is not None:
+                connection.execute(
+                    text("INSERT INTO raw.api_quota_usage VALUES (:day, 'gemini', :units)"),
+                    {"day": day, "units": previous},
+                )
+        engine.dispose()

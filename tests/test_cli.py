@@ -129,3 +129,14 @@ def test_render_has_separate_labels_and_escapes_untrusted_text():
     assert "\\n\\u001b" in output
     assert "1234567" in output
     assert output.endswith("That's everything for this week")
+
+
+def test_summary_review_command_is_local(monkeypatch, capsys):
+    monkeypatch.setattr("offscroll.cli.load_settings", Mock())
+    engine = Mock()
+    monkeypatch.setattr("offscroll.cli.create_db_engine", Mock(return_value=engine))
+    manifest = [{"approval_hash": "a" * 64, "public_input": {"title": "Local review"}}]
+    monkeypatch.setattr("offscroll.cli.summary_review_inputs", lambda _: manifest)
+    assert main(["summary-inputs"]) == 0
+    assert "Local review" in capsys.readouterr().out
+    engine.dispose.assert_called_once()

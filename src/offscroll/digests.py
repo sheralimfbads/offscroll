@@ -19,7 +19,7 @@ from offscroll.ranking import (
     select_lanes,
 )
 from offscroll.retention import purge_expired
-from offscroll.summaries import Summarizer, TemplateSummarizer
+from offscroll.summaries import Summarizer, cache_key, configured_summarizer
 
 LANES = {"hackernews": "Hacker News", "wikipedia": "Wikipedia", "youtube": "YouTube"}
 
@@ -77,6 +77,9 @@ def shared_candidates(connection: Connection, window: Window, now: datetime) -> 
                 views=row["views"],
                 spike_ratio=float(spike) if isinstance(spike, (int, float)) else None,
                 discussion_url=row["discussion_url"],
+                description=row["metadata"].get("source_description")
+                if isinstance(row["metadata"].get("source_description"), str)
+                else None,
             )
         )
     return result
@@ -135,6 +138,12 @@ def why_here(row: Ranked) -> str:
 def _store_summary(
     connection: Connection, item: Candidate, summarizer: Summarizer, now: datetime
 ) -> int:
+    key = cache_key(item, summarizer.model, summarizer.prompt_version)
+    cached = connection.execute(
+        text("SELECT id FROM core.item_summaries WHERE input_hash = :key"), {"key": key}
+    ).scalar_one_or_none()
+    if cached is not None:
+        return int(cached)
     summary = summarizer.summarize(item)
     return int(
         connection.execute(
@@ -158,10 +167,12 @@ def build_digest(
     week: str | None = None,
     now: datetime | None = None,
     config_path: Path = Path("config/ranking.yaml"),
+    summarizer: Summarizer | None = None,
 ) -> int:
     now = now or datetime.now(UTC)
     window = digest_window(now, week)
     config = load_ranking(config_path)
+    summarizer = summarizer or configured_summarizer(engine)
     purge_expired(engine)
     # The unique window upsert takes a row lock: concurrent replacements serialize.
     with engine.begin() as connection:
@@ -185,7 +196,7 @@ def build_digest(
                         "window_start": window.start.isoformat(),
                         "window_end": window.end.isoformat(),
                         "mode": "iso_week" if week else "rolling",
-                        "summarizer": "template",
+                        "summarizer": summarizer.model,
                         "version": 1,
                     },
                 },
@@ -220,7 +231,7 @@ def build_digest(
                         "breakdown": row.breakdown,
                         "cluster": [_context(i) for i in row.also_covered],
                         "content": content,
-                        "summary_id": _store_summary(connection, item, TemplateSummarizer(), now),
+                        "summary_id": _store_summary(connection, item, summarizer, now),
                     },
                 )
         for rank, video in enumerate(
@@ -344,3 +355,16 @@ def render_digest(lanes: dict[str, list[dict[str, object]]]) -> str:
         lines.append("")
     lines.append("That's everything for this week")
     return "\n".join(lines)
+
+
+def summary_review_inputs(engine: Engine) -> list[dict[str, object]]:
+    """Local-only review manifest; approval is never inferred from source publicity."""
+    from offscroll.summaries import approval_hash, public_input
+
+    now = datetime.now(UTC)
+    with engine.connect() as connection:
+        candidates = shared_candidates(connection, digest_window(now), now)
+    return [
+        {"approval_hash": approval_hash(item), "public_input": public_input(item)}
+        for item in candidates
+    ]

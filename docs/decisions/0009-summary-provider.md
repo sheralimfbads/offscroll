@@ -1,71 +1,79 @@
-# 0009: Choose an optional summary provider
+# 0009: Use Gemini free tier for reviewed offline summaries
 
-Status: proposed; owner choice pending
+Status: accepted
 Date: 2026-11-16
 
-## Context
+## Context and verified sources
 
-M4 P0 runs without an account: deterministic templates provide source context for
-HN/Wikipedia. YouTube remains outside summaries. The brief requires checking two
-or three providers and stopping for the owner to choose before implementing one.
-This comparison covers two providers from official pages retrieved 2026-11-16;
-no account was accessed, API key read, model called, or terms accepted.
+The owner selected Google AI Studio/Gemini free tier and delegated subsequent
+implementation decisions. Billing must NOT be enabled. Verification 2026-11-16:
 
-## Options verified
-
-| Option | Standard text pricing per million tokens (USD) | Free access and limits | Terms/data considerations |
-| --- | --- | --- | --- |
-| Google Gemini `gemini-2.5-flash-lite` | $0.10 input, $0.40 output | Pricing lists free input/output. Active RPM/TPM/RPD limits depend on the project and must be checked in AI Studio; no fixed free quota is promised here. | Unpaid inputs/outputs may be used to improve products and reviewed by people. Paid-service data is not used for product improvement. Terms include region/age restrictions; API clients serving EEA/UK/Switzerland users require paid services. |
-| Groq `openai/gpt-oss-20b` | $0.075 input, $0.30 output | Published free limits: 30 RPM, 1,000 RPD, 8,000 TPM, 200,000 TPD; actual organization limits can differ. | Ordinary inference is not retained by default, with feature/reliability/abuse exceptions. Data Controls offers zero data retention. Groq's agreement and applicable model terms both apply; customer is responsible for inputs and evaluating outputs. |
-
-Official sources (all retrieved 2026-11-16):
-
-- Google [pricing](https://ai.google.dev/gemini-api/docs/pricing),
-  [limits](https://ai.google.dev/gemini-api/docs/rate-limits), and
-  [terms](https://ai.google.dev/gemini-api/terms), effective March 23, 2026.
-  These URLs currently redirect to the corresponding AI Studio documentation.
-- Groq [production models and pricing](https://console.groq.com/docs/models),
-  [free rate limits](https://console.groq.com/docs/rate-limits),
-  [data policy](https://console.groq.com/docs/your-data), and
-  [services agreement](https://console.groq.com/docs/legal/services-agreement).
-
-Illustrative calculation, not a bill or a quality benchmark: eleven summaries
-with 500 input and 100 output tokens each would cost about $0.00099 on Gemini
-or $0.0007425 on Groq at the listed paid text rates. Actual billable tokens,
-including reasoning, retries and changed rates, can differ. Free access and
-account eligibility must be confirmed by the owner; credentials stay out of chat.
+- [Model](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-lite):
+  `gemini-2.5-flash-lite` is explicitly Stable, supports structured output, and
+  is distinct from the shut-down preview variant.
+- [Pricing](https://ai.google.dev/gemini-api/docs/pricing): text free tier is
+  available. Listed paid equivalents per million input/output tokens are
+  $0.10/$0.40 for 2.5 Flash-Lite, $0.25/$1.50 for 3.1 Flash-Lite, and $0.30/$2.50
+  for 3.5 Flash-Lite. The cheapest listed stable text Flash-Lite is therefore
+  2.5; free requests cost zero. GEMINI_MODEL remains configurable, with preview
+  identifiers and URL/path injection rejected.
+- [Regions](https://ai.google.dev/gemini-api/docs/available-regions): Uzbekistan
+  is listed. Actual execution location also matters; do not assume a hosted
+  runner is in the same region as its owner.
+- [Terms](https://ai.google.dev/gemini-api/terms), effective 2026-03-23:
+  free content can improve Google products and can be read by human reviewers.
+  Only Paid Services may make API clients available to EEA/CH/UK users. Age and
+  geographic restrictions also apply.
+- [Limits](https://ai.google.dev/gemini-api/docs/rate-limits): project RPM/TPM/RPD
+  can vary. Offscroll's local 50/day cap does not promise 50 provider successes.
+- [Structured output](https://ai.google.dev/gemini-api/docs/structured-output)
+  and [generateContent](https://ai.google.dev/api/generate-content): JSON schema
+  requests still need application validation.
 
 ## Decision
 
-Pending. Recommend keeping templates until the owner wants AI summaries and can
-choose an account/provider. If selecting an external provider now, Groq's listed
-free allowance and data controls make it a reasonable first candidate; this is
-an engineering preference, not a tested claim of better summary quality.
+Use an httpx Gemini adapter behind Summarizer. No dependency was added. Activate
+only with nonblank GEMINI_API_KEY; otherwise use TemplateSummarizer. Keys travel
+in a header, never query strings or logs. No billing API, grounding, tools, visitor
+calls, retries, scraped bodies, authors, usernames, statistics or YouTube inputs.
+"Batch" here means the local sequential build job, not Google's paid Batch API.
 
-Available choices:
+Public metadata can contain personal data. Require review of the exact title,
+source, domain and optional source-provided description/extract; approval is a
+SHA-256 hash in `config/summary_public_inputs.json`, empty by default. Changed
+text needs renewed review. Obvious contact/credential patterns are additionally
+blocked. `summary-inputs` supplies a local review manifest. Human review is the
+semantic privacy boundary: automation cannot prove arbitrary prose nonpersonal.
+Do not approve identifying or sensitive material, even if publicly accessible.
 
-1. Defer P1 and close M4 with deterministic source-context templates.
-2. Implement Groq with the chosen production model.
-3. Implement Google Gemini with the chosen model/tier.
+Cache successful output by public-input/model/prompt hash before requests. Reserve
+one call in the existing raw.api_quota_usage table, source=gemini, UTC day, in a
+separate atomic transaction; allow exactly 50, including failed requests. Failed
+build rollback cannot refund calls. All API errors, 429, refusal/truncation and
+invalid JSON/schema output use templates immediately. Pydantic enforces a short
+string, at most two sentences, no extra fields, contacts/control characters or
+"verified". Store model, version, hash, reported tokens and zero free-tier cost.
+Unknown error usage cannot be inferred. Fallback rows are labelled Source context;
+actual model output is labelled AI-generated summary. Nothing claims factual proof.
 
-After an external-provider choice, implement exactly one adapter using existing
-httpx (no new dependency needed), masked environment configuration, validated
-JSON of at most two neutral sentences, safe template fallback, delimited untrusted
-inputs, a fake-provider injection fixture, input-hash caching before requests,
-usage/cost tracking, and an atomic hard daily call cap. No web tools, browsing,
-scraped article body, YouTube metadata, or autonomous tool execution is allowed
-in summary requests. Label actual LLM output AI-generated; do not claim it proves
-anything. These provider safeguards are pending work, not implemented features.
+## Options and fallbacks
 
-## Alternatives considered
+Gemini is the accepted primary provider. Groq free tier remains the operational
+fallback option, followed by templates. Per the one-provider requirement, there
+is no automatic transfer to Groq or second secret reader; Gemini errors immediately
+use templates. A future Groq migration must recheck its current model/free limits
+and terms. This avoids sending data to a second processor unexpectedly.
 
-Multiple simultaneous providers would enlarge the implementation and testing
-surface. A selected provider behind the existing Summarizer interface is enough.
-Templates avoid cost, privacy transfer, and model uncertainty, but provide source
-context rather than a substantive paraphrase of an article that was never fetched.
+## Residual risk and conservative public delivery
 
-## Consequences
+Offline generation does not establish an exemption from the broad EEA/CH/UK
+API-client wording. Global static exports and public web routes use templates,
+while locally viewed digests may include reviewed Gemini summaries. This reduced
+form preserves the feature without billing or unsupported region assertions.
+No geographic bypass or billing enablement is implemented. A future change needs
+provider clarification or a compatible free provider, recorded in an ADR.
 
-P0 ranking, lanes and persistence can be tested independently. M4 remains open at
-this explicit provider decision until P1 is implemented or the owner defers it.
-No `m4-done` tag is created before that decision. M5 does not start automatically.
+The owner must keep project billing disabled; an API key alone cannot prove its
+billing tier. No live Gemini request was made during AI development: unit/fake
+provider and database tests validate behavior; account/credential setup is owner
+work. Generated prose can still be inaccurate despite valid schema and prompts.

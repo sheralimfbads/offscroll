@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from offscroll.config import SourceSettings, load_settings
 from offscroll.connectors._base import ConnectorError
 from offscroll.db import create_db_engine
-from offscroll.digests import build_digest, read_digest, render_digest
+from offscroll.digests import build_digest, read_digest, render_digest, summary_review_inputs
 from offscroll.operations import check_data, run_all, source_status
 from offscroll.pipeline import PipelineError, digest, execute_run
 from offscroll.ranking import DigestError
@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("purge-raw")
     commands.add_parser("run-all")
     commands.add_parser("status")
+    commands.add_parser("summary-inputs")
     commands.add_parser("check-data")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="level=%(levelname)s %(message)s")
@@ -102,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in row.items()))
         elif args.command == "check-data":
             return 0 if print_checks(engine, SourceSettings().enabled_sources) else 1
+        elif args.command == "summary-inputs":
+            for entry in summary_review_inputs(engine):
+                print(json.dumps(entry, ensure_ascii=True))
         elif args.command == "build-digest":
             digest_id = build_digest(engine, week=args.week, config_path=args.config)
             print(f"digest_id={digest_id} status=built")

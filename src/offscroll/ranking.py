@@ -86,6 +86,7 @@ class Candidate:
     views: int | None = None
     spike_ratio: float | None = None
     discussion_url: str | None = None
+    description: str | None = None
 
     def __post_init__(self) -> None:
         # Runtime boundary also protects callers that do not use static typing.

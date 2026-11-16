@@ -1,8 +1,7 @@
 # Offscroll progress
 
-Last resume check: 2026-11-16 (Asia/Tashkent). M3 is merged. M4 P0 lanes,
-ranking, persistence and templates passed local/live acceptance; P1 provider choice
-is the remaining explicit stop (ADR 0009).
+Last resume check: 2026-11-16 (Asia/Tashkent). Full-control directive accepted.
+M4 P1 is implemented and validated; continue directly into M5 after local tagging.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -31,7 +30,7 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Owner: run all three sources twice with YouTube credentials; show status/check-data.
   - [x] Record acceptance, rerun local checks, commit closeout, and tag `m3-done`.
   - [x] Owner: merged M3 into main at `35429cb`; automation did not push.
-- [ ] M4: Ranking, corroboration, persisted digests, and summaries.
+- [x] M4: Ranking, corroboration, persisted digests, and summaries.
   - [x] Accept the owner-selected YouTube lane design in ADR 0008 and the brief.
   - [x] HN/Wikipedia scoring, clustering, selection, config, and offline fixtures.
   - [x] Isolated YouTube SQL ordering, one per channel, no stored/rendered ratio.
@@ -39,8 +38,8 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Retention-aware YouTube display and link-only archives; template summaries.
   - [x] Local checks, PostgreSQL tests, migration round trip, real two-source build.
   - [x] Verify two LLM provider options and prepare ADR 0009.
-  - [ ] Owner: choose one provider or explicitly defer P1.
-  - [ ] Implement chosen P1 provider if requested, final checks/report, tag `m4-done`.
+  - [x] Owner chose Gemini free tier; ADR 0009 accepted.
+  - [x] Implement Gemini, validate cache/cap/fallbacks, close locally with `m4-done`.
   - [ ] Owner: push M4 and obtain fresh CI; automation never pushes.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
@@ -72,8 +71,8 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 - HN raw retention is a 90-day project policy, enforced by the manual `purge-raw` command.
 - Resume M2 closeout first: its code is implemented, but the new documentation, smoke,
   contact-information, and tag requirements were not yet present.
-- The new brief is authoritative over earlier workflow instructions; never push and
-  stop after each milestone report.
+- 2026-11-16: full-control directive supersedes milestone/decision stops; continue
+  through M5, never push, keep billing and schedules disabled.
 - On 2026-11-15 the owner delegated the CI credential choice. Keep the public
   disposable test password as a narrow exception; real API/production credentials
   still require GitHub Actions secrets. This preserves fork PR testing without
@@ -84,21 +83,43 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
   [ADR 0004](decisions/0004-runtime-and-ci.md). No dependencies, applied migrations,
   CI configuration, or lint rules changed during closeout.
 
+- 2026-11-16: ADR 0009 accepts stable Gemini 2.5 Flash-Lite, reviewed inputs,
+  durable 50/day cap, template public delivery, and no billing.
+
 ## Open questions / owner actions
 
-1. **M4 provider choice:** choose one external provider or defer P1 using
-   [ADR 0009](decisions/0009-summary-provider.md). No credentials were requested
-   or read, no provider was selected, and no model API was called.
-2. **YouTube decision resolved:** [ADR 0008](decisions/0008-m4-youtube-scoring.md)
-   is accepted. The exclusion proposal is superseded; do not reopen that approval
-   gate. Public launch still needs the documented branding and retention work.
-3. Owner refreshes YouTube through the normal collector after applying migration
-   0004 so older rows gain explicit public status. The agent's live check used
-   only public HN/Wikipedia APIs; three-lane behavior has seeded PostgreSQL tests.
-4. Later explicit stops: hosting and project license. Owner pushes/merges M4 and
-   obtains fresh CI; local checks are not a claim of green remote CI.
+1. Owner creates/configures any required accounts, keeps Gemini billing disabled,
+   supplies credentials outside chat, and runs optional live authenticated smoke.
+2. Owner pushes/merges; no remote CI or deployment is claimed locally.
+3. M5 defaults: GitHub Pages static export, disabled schedule, license deferred.
+   Exact owner steps belong in docs/OWNER_TODO.md; do not stop local work for them.
 
-## Current milestone report: M4 P0 implemented; P1 choice pending
+## M4 completion report (P1)
+
+Gemini adapter implemented behind Summarizer with stable configurable
+`gemini-2.5-flash-lite`, header-only masked credentials, reviewed public input hashes,
+Pydantic JSON validation, neutral two-sentence limit, immediate template fallbacks,
+success cache before requests, token/model/prompt recording, and a durable atomic
+50-attempt UTC daily cap. No new dependency/schema migration was necessary: the
+existing quota table has a distinct gemini row. Billing and visitor-triggered LLM
+calls are absent. Public delivery conservatively uses templates because offline
+batching does not establish a regional-terms exemption. ADR 0009 records official
+URLs/dates and the Groq-then-template operational fallback (no automatic second
+processor). No live Gemini request or .env read occurred.
+
+Validation: make check passed (163 unit tests, 32 integration deselected; Ruff and
+strict mypy). make test-integration passed 32 tests against disposable PostgreSQL;
+cap durability, cache reuse, fake injection/HTTP errors, malformed JSON, approval
+privacy boundary and secret masking are covered. Database/storage cleaned up.
+P0 live acceptance remains the 11-item public-source digest recorded below.
+
+Self-review risks: (1) semantic privacy depends on exact-input human review;
+(2) a key cannot establish billing/project-region settings, which remain owner
+responsibilities; (3) valid model JSON may still contain inaccurate prose.
+Fallbacks keep collection/build usable. Local tag m4-done closes M4; proceed
+immediately onto m5-delivery. No push, billing, account creation or live secret use.
+
+## Historical M4 P0 report (provider choice subsequently resolved)
 
 The owner merged M3, rebased this branch, and selected an isolated YouTube lane
 on 2026-11-16. ADR 0008 and the M4 brief now record that accepted amendment,

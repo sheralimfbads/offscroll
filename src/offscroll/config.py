@@ -62,3 +62,14 @@ class SourceSettings(BaseSettings):
     @property
     def enabled_sources(self) -> list[str]:
         return self.offscroll_sources.split(",")
+
+
+class SummarySettings(BaseSettings):
+    """Offline Gemini only; no dotenv and no billing-management capability."""
+
+    model_config = SettingsConfigDict(env_file=None, hide_input_in_errors=True)
+    gemini_api_key: SecretStr | None = Field(default=None, repr=False)
+    gemini_model: str = Field(
+        default="gemini-2.5-flash-lite", pattern=r"^gemini-[0-9.]+-flash-lite$"
+    )
+    summary_approved_inputs: Path = Path("config/summary_public_inputs.json")
