@@ -69,7 +69,7 @@ gh secret set DATABASE_URL
 gh secret set YOUTUBE_API_KEY
 ```
 
-Configure PGSSLMODE in the workflow environment for the chosen remote DB. The
+Workflows default PGSSLMODE to require; verify the chosen remote DB supports TLS. The
 application deliberately rejects URL query parameters, so TLS options belong in
 libpq environment settings. Rehearse the empty-target restore in RUNBOOK.md; check
 all downloaded backups expire within seven days. No YouTube API data or model prose

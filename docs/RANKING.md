@@ -96,3 +96,12 @@ Candidate pools reflect source collection limits and editorial channel choices.
 Percentiles measure relative attention in those pools, not quality. Title matching
 can miss synonyms and join different events with similar wording. Source agreement
 may repeat one shared error. No model or matching heuristic verifies claims.
+
+## M5 public delivery boundary
+
+The static HTML/JSON and optional web API show separate source lanes using the
+same saved selection. Public YouTube entries contain only video ID/link from day
+one; local CLI reads can show fresh unmodified API metadata. Public summaries use
+deterministic context templates, while reviewed Gemini output remains local.
+This trades richer previews/prose for enforceable archive retention and conservative
+regional policy handling; see ADRs 0009–0011 and COMPLIANCE.md.

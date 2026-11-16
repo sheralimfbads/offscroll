@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 30
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGSSLMODE: require
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       OFFSCROLL_SOURCES: hackernews,wikipedia,youtube
       # Gemini deliberately stays local; no model key or visitor-triggered calls.

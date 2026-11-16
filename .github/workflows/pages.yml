@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 10
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGSSLMODE: require
     steps:
       - uses: actions/checkout@v7
         with:

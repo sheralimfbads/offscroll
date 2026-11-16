@@ -130,3 +130,17 @@ def test_health_checks_database(monkeypatch):
             connection.execute.assert_called_once()
     finally:
         app.dependency_overrides.clear()
+
+
+def test_web_database_failure_is_generic_and_does_not_expose_details(monkeypatch):
+    from sqlalchemy.exc import SQLAlchemyError
+
+    def unavailable():
+        raise SQLAlchemyError("PRIVATE DATABASE DIAGNOSTIC")
+
+    monkeypatch.setattr("offscroll.web.load_settings", unavailable)
+    with TestClient(app) as client:
+        response = client.get("/healthz")
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Database unavailable."}
+        assert "PRIVATE" not in response.text

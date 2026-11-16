@@ -13,7 +13,11 @@ Run `make check`, `make test-integration` against a disposable database, and
 `make secrets`. The no-account scan checks reachable history for common Google,
 GitHub, AWS, provider-token, private-key and PostgreSQL-password patterns. Explicit
 synthetic test placeholders are exempt; findings print object IDs/rules, never
-matched values. It is a pattern scan, not proof against all credential formats.
+matched values. One immutable local tool-checkpoint blob
+(`c44a14af25b2e300a1519d2ae72bdcd6246e9669`, the original scanner unit-test fixture)
+has an exact object/rule exception for its deliberate synthetic database URL.
+That fixture still must trigger the detector in unit tests; other blobs receive
+no such exception. It is a pattern scan, not proof against all credential formats.
 
 Untrusted source text is validated/escaped and never treated as model instructions.
 Model input needs exact human review for personal data. Output validation cannot

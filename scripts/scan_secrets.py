@@ -25,6 +25,12 @@ SAFE_PASSWORDS = {
     b"bad",
 }
 
+# A local tool checkpoint captured the original intentional scanner-test URL.
+# Immutable blob scope: never exempt this password pattern in any other content.
+REVIEWED_BLOBS = {
+    "c44a14af25b2e300a1519d2ae72bdcd6246e9669": {"database-password"},
+}
+
 
 def findings(data: bytes) -> set[str]:
     result = {name for name, pattern in PATTERNS.items() if re.search(pattern, data)}
@@ -73,7 +79,7 @@ def scan(staged: bool = False) -> tuple[int, list[tuple[str, str]]]:
         if git("cat-file", "-t", oid).strip() != b"blob":
             continue
         blobs += 1
-        for rule in findings(git("cat-file", "blob", oid)):
+        for rule in findings(git("cat-file", "blob", oid)) - REVIEWED_BLOBS.get(oid, set()):
             failures.append((oid, rule))
     return blobs, failures
 

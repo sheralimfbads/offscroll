@@ -47,3 +47,22 @@ def test_secret_scanner_detects_patterns_without_reporting_values():
     assert findings(b"AIza" + b"A" * 35) == {"google-key"}
     assert findings(b"postgresql://" + b"user:nonplaceholder@localhost/db") == {"database-password"}
     assert findings(b"postgresql://user:ci_placeholder_password@localhost/db") == set()
+
+
+def test_history_scan_flags_dotenv_without_reading_it(monkeypatch):
+    scanner = runpy.run_path(str(Path("scripts/scan_secrets.py")))
+    calls = []
+
+    def fake_git(*args):
+        calls.append(args)
+        if args == ("rev-list", "--objects", "--all"):
+            return b"secret-object .env\nsafe-object README.md\n"
+        if args == ("cat-file", "-t", "safe-object"):
+            return b"blob\n"
+        if args == ("cat-file", "blob", "safe-object"):
+            return b"No credentials here."
+        raise AssertionError("Unexpected attempt to read excluded data")
+
+    monkeypatch.setitem(scanner["scan"].__globals__, "git", fake_git)
+    assert scanner["scan"]() == (1, [("secret-object", "tracked-dotenv")])
+    assert all("secret-object" not in call for call in calls)
