@@ -1,0 +1,71 @@
+name: Digest pipeline (owner enabled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_digest:
+        description: Build and export a new digest after collection
+        type: boolean
+        default: true
+  # DISABLED: owner must configure secrets, persistence, backups and hosting first.
+  # schedule:
+  #   - cron: '0 */6 * * *'
+  #   - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offscroll-pipeline
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: vars.ENABLE_PIPELINE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGSSLMODE: require
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      OFFSCROLL_SOURCES: hackernews,wikipedia,youtube
+      # Gemini deliberately stays local; no model key or visitor-triggered calls.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - name: Install and migrate
+        run: |
+          make venv
+          make install
+          make migrate
+      - name: Purge and collect
+        run: |
+          .venv/bin/offscroll purge-raw
+          .venv/bin/offscroll run-all
+      - name: Build the weekly digest and static export
+        if: inputs.build_digest || github.event.schedule == '0 6 * * 1'
+        run: |
+          .venv/bin/offscroll build-digest
+          .venv/bin/offscroll export-site
+      - name: Save public site for owner deployment
+        if: inputs.build_digest || github.event.schedule == '0 6 * * 1'
+        uses: actions/upload-artifact@v6
+        with:
+          name: offscroll-site
+          path: site/
+          retention-days: 7
+      - name: Create filtered daily backup
+        if: always()
+        run: |
+          .venv/bin/offscroll backup --output "backups/offscroll-${GITHUB_RUN_ID}.sql"
+      - name: Retain filtered backup for seven days
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: offscroll-backup
+          path: backups/
+          retention-days: 7

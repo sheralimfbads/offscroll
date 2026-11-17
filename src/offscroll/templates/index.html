@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="A finite weekly digest of technology, ideas, and the wider world.">
+  <title>Offscroll — your week, in perspective</title>
+  <link rel="stylesheet" href="{{ assets }}style.css">
+</head>
+<body>
+<a class="skip" href="#digest">Skip to the digest</a>
+<div class="page">
+  <header class="masthead"><a class="wordmark" href="./">offscroll<span aria-hidden="true">.</span></a><span>PAGE PREPARED · {{ date }}</span></header>
+  <section class="intro" aria-labelledby="intro-title">
+    <p class="eyebrow">A LITTLE PERSPECTIVE. THEN, BACK TO LIFE.</p>
+    <h1 id="intro-title">The world keeps moving.<br><em>You can take a moment.</em></h1>
+    <p class="dek">A few things worth your attention, gathered in one finite place.<br>No endless feed. Read what interests you. Leave when you're ready.</p>
+    <div class="edition"><span>{{ count }} selections</span><span>3 source lanes</span><span>One clear ending</span></div>
+  </section>
+  <main id="digest">
+  {% for lane, label in labels.items() %}
+    <section class="lane" aria-labelledby="{{ lane }}-heading">
+      <div class="section-heading"><div><p class="eyebrow">{% if lane == 'hackernews' %}01 / IDEAS & TECHNOLOGY{% elif lane == 'wikipedia' %}02 / THE WIDER CONTEXT{% else %}03 / SOMETHING TO WATCH{% endif %}</p>
+      <h2 id="{{ lane }}-heading">{% if lane == 'youtube' %}<a href="https://www.youtube.com/" rel="noreferrer"><img class="youtube-brand" src="{{ assets }}youtube-logo.png" alt="YouTube" height="48"></a>{% else %}{{ label }}{% endif %}</h2></div><span class="count">{{ lanes[lane]|length }} selections</span></div>
+      <ol class="stories">
+      {% for item in lanes[lane] %}
+        <li class="story"><span class="rank" aria-hidden="true">{{ '%02d'|format(item.lane_rank) }}</span><article>
+        {% if lane == 'youtube' %}
+          <p class="source">YouTube · curated channels</p>
+          <h3><a href="{{ item.url }}" rel="noreferrer">Watch on YouTube <span aria-hidden="true">↗</span></a></h3>
+          <p class="context">Open the original video for its title, thumbnail, and current details.</p>
+          <p class="video-id">Video {{ item.video_id }}</p>
+        {% else %}
+          <p class="source">{{ label }}{% if item.domain %} · {{ item.domain }}{% endif %}</p>
+          <h3>{% if item.url %}<a href="{{ item.url }}" rel="noreferrer">{{ item.title }} <span aria-hidden="true">↗</span></a>{% else %}{{ item.title }}{% endif %}</h3>
+          <p class="why">{{ item.why_here }}</p>
+          <p class="context"><span class="context-label">{{ item.summary_label }}:</span> {{ item.summary }}</p>
+          {% if item.also_covered_by %}<p class="coverage">Also covered by {% for other in item.also_covered_by %}{% if other.url %}<a href="{{ other.url }}" rel="noreferrer">{{ labels[other.source] }}</a>{% else %}{{ labels[other.source] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+          {% if item.discussion_url %}<a class="discussion" href="{{ item.discussion_url }}" rel="noreferrer">Read the HN discussion →</a>{% endif %}
+        {% endif %}
+        </article></li>
+      {% else %}<li class="empty">A quieter week here. No eligible selections in this edition.</li>{% endfor %}
+      </ol>
+    </section>
+  {% endfor %}
+  </main>
+  <section class="ending" aria-labelledby="end-title"><span class="end-mark" aria-hidden="true">✓</span><p class="eyebrow">YOU'RE ALL CAUGHT UP</p><h2 id="end-title">That's everything for this week</h2><p>Close the tab. Take a walk. We'll leave it here.</p></section>
+  <footer>
+    <p>Independent project. Attention and shared coverage are not proof of a claim.</p>
+    <p>Sources: <a href="https://news.ycombinator.com/" rel="noreferrer">Hacker News</a> · <a href="https://en.wikipedia.org/" rel="noreferrer">Wikipedia</a> (pageview data: CC0; article text on Wikipedia: CC BY-SA) · <a href="https://www.youtube.com/" rel="noreferrer">YouTube</a>. No affiliation or endorsement.</p>
+    <p>No accounts, analytics, cookies, autoplay, or visitor AI requests. Links take you to the original sites, whose privacy policies apply.</p>
+    <p>YouTube links only; no copied video metadata. <a href="https://www.youtube.com/t/terms" rel="noreferrer">YouTube terms</a> · <a href="https://policies.google.com/privacy" rel="noreferrer">Google privacy</a>.</p>
+    <p class="colophon">OFFSCROLL · LESS FEED, MORE LIFE</p>
+  </footer>
+</div>
+</body>
+</html>

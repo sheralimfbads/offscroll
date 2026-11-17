@@ -84,3 +84,7 @@ API counts/titles refresh, then becomes link-only; it is not a historical snapsh
 No new dependency is needed: SQLAlchemy, PostgreSQL, Pydantic, and PyYAML are
 already installed. A daily purge and compatible backup lifecycle remain necessary
 before unattended operation.
+
+M5 implementation note (2026-11-16): ADR 0010 uses the official logo/name link
+and publishes only video ID/link from day one. The local CLI retains the recent
+API-metadata display described above; exported copies need no later metadata purge.

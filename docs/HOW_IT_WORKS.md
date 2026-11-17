@@ -228,3 +228,45 @@ but may conservatively count a process crash before HTTP as an attempt. Template
 are used for global delivery pending clearer regional permission; local CLI output
 can show reviewed AI summaries. Tests use fake responses, including an instruction
 injection title; no test needs an API account.
+
+## M5: One saved digest, two delivery formats
+
+The CLI builds a digest once; visitors only read it. `delivery.py` converts saved
+lanes into an explicit public allowlist. HN/Wikipedia keep links, attention context
+and deterministic template prose. YouTube keeps video IDs and links only, because
+a downloaded static copy cannot reliably expire its API metadata. Local Gemini
+prose also stays out of global exports. Jinja2 escapes text into a finite page;
+CSS supplies mobile, light/dark and keyboard focus styles. `export-site` writes
+HTML, JSON and local assets. `web/` exposes the same projection through GET routes.
+
+Module map: delivery.py = publication boundary; templates/static = presentation;
+web = read-only HTTP; backups.py = filtered SQL recovery; pipeline/pages workflows
+= owner-enabled collection/publication. Make targets connect the existing pieces;
+no new database migration is needed. Docker packages the optional web app under
+an unprivileged UID. A static host serves files without Python or database secrets.
+
+Worked example: a real collection yields 619 HN items and a set of Wikipedia
+candidates. Ranking selects six HN and five Wikipedia items; an empty YouTube lane
+stays empty. Export reads eleven saved selections, escapes a title containing `<`,
+adds original/discussion links, and finishes with “That's everything for this week”.
+A later page request does not recollect or spend model quota. Backing up retains
+those selections but omits YouTube API rows and model prose. A restore into an empty
+DB can export the digest immediately; fresh collection restores omitted metadata.
+
+Five interview questions:
+1. **Why static first?** It needs no persistent web server and exposes no DB key;
+   the trade-off is rebuilding to publish changes.
+2. **Why one public projection?** HTML, JSON and FastAPI share the same retention
+   and model-policy boundary instead of implementing three inconsistent filters.
+3. **Why filtered backups?** Full dumps would retain expiring YouTube data. Recovery
+   gives up that cache and model prose in exchange for simpler retention guarantees.
+4. **Why a read-only web service?** Visitor traffic cannot trigger costs, quota
+   consumption or collection failures. The batch operator owns freshness.
+5. **What do tests not prove?** Mocked APIs and HTML assertions do not prove current
+   provider terms, source truth, hosted availability or visual accessibility.
+
+Glossary: **ASGI** is Python's asynchronous web-server interface; **autoescape**
+turns source markup into harmless text; **CSP** constrains browser resource loading;
+**artifact** is a workflow-produced file bundle; **repeatable read** gives backup
+data one consistent database snapshot; **restore rehearsal** tests recovery before
+an incident. See RUNBOOK.md for operational commands and PROGRESS.md for evidence.

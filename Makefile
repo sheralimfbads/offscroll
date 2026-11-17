@@ -43,3 +43,23 @@ test-integration:
 # Manual only: calls the public API and writes to the configured database.
 smoke: check-python
 	$(PYTHON) -m offscroll.cli run $(SMOKE_SOURCE) --page-cap 1
+
+.PHONY: setup collect-public site serve secrets
+setup:
+	$(MAKE) venv
+	$(MAKE) install
+	$(MAKE) db-up
+	$(MAKE) migrate
+
+collect-public:
+	OFFSCROLL_SOURCES=hackernews,wikipedia $(PYTHON) -m offscroll.cli run-all
+
+site:
+	$(PYTHON) -m offscroll.cli build-digest
+	$(PYTHON) -m offscroll.cli export-site
+
+serve:
+	.venv/bin/uvicorn offscroll.web:app --host 127.0.0.1 --port 8000 --no-access-log
+
+secrets:
+	$(PYTHON) scripts/scan_secrets.py

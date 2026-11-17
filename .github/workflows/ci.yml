@@ -30,6 +30,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
@@ -39,6 +40,8 @@ jobs:
           make install
       - name: Lint, typecheck, and unit tests
         run: make check
+      - name: Scan reachable Git history for secret patterns
+        run: make secrets
       - name: Apply migrations and run integration test
         env:
           DATABASE_URL: postgresql+psycopg://offscroll_ci:ci_placeholder_password@127.0.0.1:5432/offscroll_ci

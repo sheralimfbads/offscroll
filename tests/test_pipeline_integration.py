@@ -39,8 +39,9 @@ def database(monkeypatch):
         monkeypatch.setattr(engine, "connect", lambda: nullcontext(connection))
         try:
             # These deletes and every pipeline write are rolled back after each test.
-            connection.execute(text("DELETE FROM core.items WHERE source = 'hackernews'"))
-            connection.execute(text("DELETE FROM raw.api_responses WHERE source = 'hackernews'"))
+            # Assertions count all sources, so isolate from pre-existing Wikipedia/YouTube rows.
+            connection.execute(text("DELETE FROM core.items"))
+            connection.execute(text("DELETE FROM raw.api_responses"))
             yield engine, connection
         finally:
             transaction.rollback()

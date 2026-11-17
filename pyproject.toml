@@ -15,6 +15,9 @@ dependencies = [
     "SQLAlchemy>=2.0,<3",  # Manage database engines and sessions with the 2.x API.
     "psycopg[binary]>=3.2,<4",  # Connect to PostgreSQL without a local compiler setup.
     "alembic>=1.14,<2",  # Version and apply database schema migrations.
+    "fastapi>=0.115,<1",  # Typed read-only digest and health endpoints.
+    "uvicorn>=0.30,<1",  # Run the ASGI application without a separate server stack.
+    "jinja2>=3.1.6,<4",  # Autoescaped HTML shared by static export and web views.
     "PyYAML>=6.0.3,<7",  # Safely read the owner-editable curated channel configuration.
 ]
 
@@ -51,3 +54,6 @@ python_version = "3.14"
 files = ["src"]
 strict = true
 plugins = ["pydantic.mypy"]
+
+[tool.setuptools.package-data]
+offscroll = ["templates/*.html", "static/*"]

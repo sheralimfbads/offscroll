@@ -20,3 +20,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+
+# Generated public export and short-lived private backups
+site/
+backups/

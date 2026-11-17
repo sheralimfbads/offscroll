@@ -1,0 +1,14 @@
+# Optional: install pre-commit separately to enable these local hooks.
+repos:
+  - repo: local
+    hooks:
+      - id: check
+        name: Offscroll lint, types, and offline tests
+        entry: make check
+        language: system
+        pass_filenames: false
+      - id: secrets
+        name: Scan tracked files for secret patterns
+        entry: .venv/bin/python scripts/scan_secrets.py --staged
+        language: system
+        pass_filenames: false
