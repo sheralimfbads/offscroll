@@ -25,7 +25,7 @@ dependencies = [
 dev = [
     "pytest>=8,<10",
     "ruff>=0.9,<1",  # Linting, import ordering, and formatting during development.
-    "mypy>=1.14,<2",  # Static type checking for the Python package.
+    "mypy>=1.14,<3",  # Static type checking for the Python package.
     "types-PyYAML>=6,<7",  # Type-check YAML loading without suppressing mypy errors.
 ]
 
