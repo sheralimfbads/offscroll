@@ -1,13 +1,13 @@
 # Offscroll progress
 
-Last resume check: 2026-11-17 (Asia/Tashkent). M7 product/launch authorized.
-M4 and M5 are complete locally: m4-done at af171fc, m5-done on m5-delivery.
-Fresh-clone, container, backup/restore and local checks pass. No pushes or public
-deployment occurred. M6 is complete locally on m6-youtube-fix: 201 unit and 39
-integration tests pass; authenticated collection, build, real four-video export
-and doctor are green. See INCIDENT-youtube.md. Other launch steps remain
-in [OWNER_TODO.md](OWNER_TODO.md). M7 on m7-product-launch is implemented and
-locally validated; remote release authorization/activation is pending.
+Last resume check: 2026-11-17 (Asia/Tashkent). M4–M7 are merged into main;
+the owner explicitly approved publication and automatic editions. Offscroll is
+live at https://sheralimfbads.github.io/offscroll/. The first cloud edition passed
+collection, doctor and deployment; the public page passed desktop/mobile checks.
+Schedule enabled: Monday/Wednesday/Friday 08:17 Asia/Tashkent. Only ENABLE_EDITIONS
+is active; legacy publication paths remain disabled. No billing changes.
+M4–M6 tags are pushed; M7 closeout/tag follows the tested launch record below.
+Current owner maintenance steps: [OWNER_TODO.md](OWNER_TODO.md).
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -55,7 +55,8 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Fresh-clone README run with live HN/Wikipedia and all local checks.
   - [x] Full reachable-history secret pattern scan; reviewed synthetic fixture only.
   - [x] Final container smoke, completion report and local m5-done tag.
-  - [ ] Owner: push/merge, remote CI, credentials, publication, visual review/screenshot.
+  - [x] Authorized M7 release completed push/merge, remote CI, credential transfer,
+    publication and real visual review/screenshots (see launch record below).
 - [x] M6: diagnose and repair the YouTube export, harden pipeline diagnostics.
   - [x] Record pre-change stage counts; keep seven-day isolated eligibility.
   - [x] Funnel warnings, visible empty states, safe auth failures and doctor.
@@ -63,19 +64,22 @@ mission date remains historical. Use the date above for this resume check.
   - [x] Fix a live Wikipedia discovery gap with bounded coverage (ADR 0013).
   - [x] Offline checks, PostgreSQL integration, live three-source export and doctor.
   - [x] Final self-review, history scan, local commits and m6-done tag.
+- [x] M7: editorial phone-friendly UI, browser checks, free Pages deployment and
+  recurring Mon/Wed/Fri editions; remote acceptance evidence below.
 
 At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
 The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m7-product-launch`, created from M6 tip `e9ea0f5`.
+- Release closeout branch: `m7-launch-closeout`, based on merged main `1352dc8`.
+- M7 implementation branch: `m7-product-launch`, created from M6 tip `e9ea0f5`.
 - M6 branch/tag remain at `e9ea0f5`, descended from M5 tip `7f629df`.
 - M5 branch/tag remain at `7f629df`; m5-delivery starts at M4 tip `af171fc`.
 - M4 branch/tag remain at `af171fc`; M3 main merge is `35429cb`.
 - This implementation turn began clean at preflight commit `b90ef24`. Local and
-  cached remote main both point to `35429cb`, consistent with the owner's merge
-  confirmation. No remote fetch or push was needed.
+  cached remote main initially pointed to `35429cb`, consistent with the owner's
+  merge confirmation. The later authorized remote release is recorded below.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
 - Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`,
   and the new `0004_digests.py`;
@@ -85,7 +89,7 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
   types-PyYAML, justified in ADR 0006.
 - Original live validation used a disposable database that was removed afterward.
   Its counts are historical evidence, not a claim about the owner's current database.
-- New instructions prohibit pushes. The owner pushes and merges; do not push branches or tags.
+- Historical no-push boundary was explicitly superseded by the M7 release approval.
 
 ## Decisions log
 
@@ -572,9 +576,87 @@ Skeptical self-review — three material risks:
    only after an explicit choice. Regional/deleted videos can fail; original links
    remain. Local preferences do not sync; accessibility checks are not a full audit.
 
-Release boundary: no push, merge, secret transfer, Pages configuration or schedule
-activation has occurred. Connected GitHub metadata reports main at M3 35429cb and
-the default branch still m1-postgres-infrastructure; Pages is not configured or
-not available. The complete candidate must be reviewed before the owner explicitly
-supersedes prior never-push/owner-only launch rules. All code and local verification
-are ready; remote CI, the public URL and actual edition execution remain to prove.
+Historical pre-approval checkpoint: no remote release actions had occurred yet;
+main was at M3 and the default branch was m1-postgres-infrastructure. All local
+checks were ready, but remote CI, publication and an actual edition remained to
+prove. The following authorized launch record supersedes that checkpoint.
+
+## M7 public launch and closeout (2026-11-17)
+
+Decision log: the owner explicitly answered “Yes—publish and enable automatic
+editions” after reviewing the tested candidate. This supersedes earlier no-push
+and owner-only release boundaries for M4–M7; AGENTS.md, the brief and ADR 0015
+record the scope. No payments, billing changes, force pushes or production data
+destruction occurred. The GitHub connector handled PRs and merges; GitHub CLI
+handled repository administration and memory-only secret transfer.
+
+Pushed milestone branches and m4-done/m5-done/m6-done. All four release PR heads
+passed remote Checks, then merged in order with merge commits:
+
+| Milestone | PR | Green CI run | Merge commit |
+| --- | --- | --- | --- |
+| M4 | [4](https://github.com/sheralimfbads/offscroll/pull/4) | [44053987117](https://github.com/sheralimfbads/offscroll/actions/runs/44053987117) | 74a5833 |
+| M5 | [5](https://github.com/sheralimfbads/offscroll/pull/5) | [44053998120](https://github.com/sheralimfbads/offscroll/actions/runs/44053998120) | 2fc1448 |
+| M6 | [6](https://github.com/sheralimfbads/offscroll/pull/6) | [44054008446](https://github.com/sheralimfbads/offscroll/actions/runs/44054008446) | 796dec4 |
+| M7 | [7](https://github.com/sheralimfbads/offscroll/pull/7) | [44054022574](https://github.com/sheralimfbads/offscroll/actions/runs/44054022574) | 1352dc8 |
+
+GitHub now reports main as default, Pages build_type=workflow and the Pages
+environment restricted to the main branch. YOUTUBE_API_KEY exists in Actions;
+its value never entered output or Git. ENABLE_EDITIONS=true; ENABLE_PIPELINE and
+ENABLE_PAGES are unset, so the legacy jobs remain gated off. No database or Gemini
+secret is needed for this public workflow.
+
+First real cloud edition: [run 44054804806](https://github.com/sheralimfbads/offscroll/actions/runs/44054804806)
+started 09:21 UTC and completed successfully at 09:24 UTC (14:24 Asia/Tashkent).
+The actual generated_at is 2026-11-17T09:23:48.894120+00:00. The standard hosted
+runner applied migrations, ran make check, passed the cross-run budget guard,
+collected all sources, built/exported, passed every doctor check and deployed.
+
+| Source | Accepted | Rejected | Result |
+| --- | ---: | ---: | --- |
+| Hacker News | 630 | 0 | succeeded |
+| Wikipedia | 58 | 2 incomplete candidates | succeeded |
+| YouTube | 95 | 0 | succeeded; 52 quota units |
+
+YouTube funnel: 95 total → 73 within the seven-day digest window (22 removed by age) → 73 with fresh
+snapshots, explicit status, public/embeddable flags, views and channel identity
+(no removals at these gates) → 19 unique channels (54 duplicates removed) → 4
+selected (15 beyond slot cap). Stored/exported lane counts are HN 6 / Wikipedia 5 /
+YouTube 4. Doctor reports migrations 0004, healthy sources, valid data, quota
+52/7,999 and export matching the saved digest. No Gemini call.
+
+Public acceptance at https://sheralimfbads.github.io/offscroll/:
+- HTTPS HTML and JSON return 200, generated timestamp matches the cloud run,
+  15 stories with 4 real YouTube links; public YouTube JSON contains only
+  lane_rank, video_id and url. Relative manifest start_url works under /offscroll/.
+- Real Chromium desktop (1440px) and mobile (390px): no JavaScript errors or
+  horizontal overflow, zero initial third-party requests, zero initial browser
+  storage, save/read controls survive reload. Light and dark axe WCAG A/AA scans
+  report zero violations. This supplements the 12 offline browser checks.
+- Explicit Load player rendered the official privacy-enhanced YouTube frame with
+  the real title/thumbnail, correct referrer policy and no autoplay permission.
+  Actual audiovisual playback and the owner's physical phone remain manual checks.
+- README screenshots were refreshed from the actual public page; no fabricated
+  content and no copied YouTube metadata screenshot committed.
+- Existing validation remains 214 unit / 39 integration / 12 browser checks.
+  Full reachable history scan after fetching release merges: 286 blobs, zero
+  findings; the reviewed synthetic fixture exception is unchanged. Closeout CI
+  repeats all automated checks and the scan before its merge/tag. Local closeout
+  make check and frontend formatting checks pass. The documented sandbox ASGI
+  TestClient stall recurred; the unchanged offline suite passed outside the sandbox.
+
+Skeptical closeout review — top three risks:
+1. Free schedules can be delayed or disabled for inactivity; API outages can keep
+   an old edition live. The page dates/stale notice and Actions failure monitoring
+   expose that limitation; there is no uptime guarantee.
+2. Workflow history is the cloud quota ledger. Deleting current-day runs or sharing
+   the key with unaccounted clients weakens that protection. Keep history and use a
+   dedicated key/project. Disposable cloud DBs deliberately sacrifice historical
+   observations; the persistent local path remains available.
+3. YouTube policy interpretation and regional/player availability remain external
+   risks. Players connect only after consent; original links remain available.
+   Browser-local saves are current-edition filters, not synchronized archives.
+
+No runtime dependency, schema or behavior change in closeout. Remaining owner
+choices are license, policy review/optional audit, key restrictions, phone shortcut
+verification and routine monitoring. Unrelated Dependabot PRs were not merged.

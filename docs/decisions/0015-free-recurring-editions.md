@@ -1,6 +1,6 @@
 # 0015: Free recurring editions without an always-on database
 
-Status: accepted implementation; public activation pending release review
+Status: accepted; activated and verified 2026-11-17
 Date: 2026-11-17 (Asia/Tashkent)
 
 ## Context and options
@@ -48,14 +48,13 @@ is recommended: external programs or other repos are outside this guard.
 
 ### Launch boundary
 
-The owner has requested deployment, but previous never-push/owner-only secret and
-merge instructions remain an explicit release boundary until the concrete tested
-candidate is reviewed. Prepare everything first. Then obtain the owner's release
-authorization for pushes/merge commits, repository default-branch/Pages settings,
-copying the existing YouTube key into its matching GitHub secret, and enabling the
-schedule. Never create a paid service or force-push. GitHub's connected repository
-metadata currently reports m1-postgres-infrastructure as default; scheduled jobs
-must use main, so verify/correct this during launch.
+After reviewing the tested candidate, the owner explicitly approved publication
+and automatic editions on 2026-11-17. This supersedes the earlier never-push and
+owner-only launch boundaries for M4–M7. The authorized release uses merge commits
+after green CI, main as default, workflow-based Pages, the existing YouTube key
+transferred in memory to its matching Actions secret, and ENABLE_EDITIONS=true.
+No payment, billing change or force push. The Pages environment permits only main.
+Actual remote execution and public-site evidence are recorded in PROGRESS.md.
 
 ## Residual risks and fallback
 

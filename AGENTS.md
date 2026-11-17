@@ -4,7 +4,7 @@
 
 - Build a weekly digest that collects, ranks, and summarizes items from a few sources.
 - Use the Python minor in `.python-version`, httpx, pytest, and PostgreSQL.
-  FastAPI is planned for later.
+  FastAPI provides optional read-only delivery; production uses static GitHub Pages.
 - Keep code straightforward and explainable for a beginner learning backend and data engineering.
 
 ## Workflow
@@ -33,7 +33,8 @@
 
 - Never print, log, or commit secrets or URLs containing keys.
 - Keep `.env` git-ignored.
-- Never read `.env` during AI work, including indirectly through commands or scripts.
+- Never expose `.env` to AI context, logs or output. The narrow redacting-subprocess
+  exception for necessary live work is recorded in the M7 owner amendment below.
 
 ## Data and compliance
 
@@ -54,6 +55,8 @@ Source of truth for scope and rules: docs/PROJECT_BRIEF.md
   logs, screenshots, Git, or public output. Normal app settings stay env-only.
 - Run the added offline browser/accessibility checks as well as Python/integration
   checks. Capture real screenshots, not fabricated product content.
-- Prepare the complete tested release before requesting the final remote-release
-  authorization that supersedes the earlier never-push/owner-only launch boundary.
+- The owner approved the tested release on 2026-11-17: push M4–M7, merge with
+  merge commits after green CI, set main as default, configure free GitHub Pages,
+  transfer the existing YouTube key securely to Actions, and enable Mon/Wed/Fri
+  08:17 Asia/Tashkent editions. This supersedes the earlier owner-only launch boundary.
   No payments, billing enablement, force pushes, or destructive production actions.
