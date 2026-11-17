@@ -3,57 +3,85 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="A finite weekly digest of technology, ideas, and the wider world.">
-  <title>Offscroll — your week, in perspective</title>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="A little perspective, then back to life. A finite digest of ideas, context and videos from Hacker News, Wikipedia and YouTube.">
+  <meta name="theme-color" content="#f6f4ed">
+  <title>Offscroll — a little perspective</title>
+  <link rel="icon" href="{{ assets }}icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ assets }}icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="{{ assets }}style.css">
+  <script src="{{ assets }}app.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#digest">Skip to the digest</a>
-<div class="page">
-  <header class="masthead"><a class="wordmark" href="./">offscroll<span aria-hidden="true">.</span></a><span>PAGE PREPARED · {{ date }}</span></header>
+<header class="masthead wrap">
+  <a class="wordmark" href="./" aria-label="Offscroll home"><span class="brand-mark" aria-hidden="true">o</span>offscroll<span class="brand-dot">.</span></a>
+  <nav class="top-nav" aria-label="Main"><a href="#digest">The edition</a><a href="#about">Our approach</a></nav>
+  <button class="theme-button enhanced" type="button" aria-label="Switch to dark appearance" hidden><span aria-hidden="true">◐</span><span class="theme-label">Appearance</span></button>
+</header>
+<div class="wrap">
   <section class="intro" aria-labelledby="intro-title">
-    <p class="eyebrow">A LITTLE PERSPECTIVE. THEN, BACK TO LIFE.</p>
-    <h1 id="intro-title">The world keeps moving.<br><em>You can take a moment.</em></h1>
-    <p class="dek">A few things worth your attention, gathered in one finite place.<br>No endless feed. Read what interests you. Leave when you're ready.</p>
-    <div class="edition"><span>{{ count }} selections</span><span>3 source lanes</span><span>One clear ending</span></div>
+    <div class="intro-copy"><p class="eyebrow"><span class="small-rule"></span> A QUIETER CORNER OF THE INTERNET</p>
+      <h1 id="intro-title">A little perspective.<br><em>Then, back to life.</em></h1>
+      <p class="dek">Good things to read. A wider world to understand.<br>A few videos to make time for. All with a clear ending.</p>
+      <a class="primary-link" href="#digest">Open your edition <span aria-hidden="true">↘</span></a>
+    </div>
+    <aside class="edition-note" aria-label="About this edition">
+      <div class="note-top"><span>THE OFFSCROLL EDITION</span><span aria-hidden="true">↗</span></div>
+      <div class="edition-art" aria-hidden="true"><span class="art-orbit"></span><span class="art-circle"></span><span class="art-line"></span><span class="art-dot"></span></div>
+      <p class="note-heading">Less feed.<br>More room to think.</p>
+      <div class="note-bottom"><span>{{ count }} selections<br>Three distinct sources</span><span>A finite read,<br>at your pace.</span></div>
+    </aside>
   </section>
-  <main id="digest">
-  {% for lane, label in labels.items() %}
-    <section class="lane" aria-labelledby="{{ lane }}-heading">
-      <div class="section-heading"><div><p class="eyebrow">{% if lane == 'hackernews' %}01 / IDEAS & TECHNOLOGY{% elif lane == 'wikipedia' %}02 / THE WIDER CONTEXT{% else %}03 / SOMETHING TO WATCH{% endif %}</p>
-      <h2 id="{{ lane }}-heading">{% if lane == 'youtube' %}<a href="https://www.youtube.com/" rel="noreferrer"><img class="youtube-brand" src="{{ assets }}youtube-logo.png" alt="YouTube" height="48"></a>{% else %}{{ label }}{% endif %}</h2></div><span class="count">{{ lanes[lane]|length }} selections</span></div>
-      <ol class="stories">
-      {% for item in lanes[lane] %}
-        <li class="story"><span class="rank" aria-hidden="true">{{ '%02d'|format(item.lane_rank) }}</span><article>
-        {% if lane == 'youtube' %}
-          <p class="source">YouTube · curated channels</p>
-          <h3><a href="{{ item.url }}" rel="noreferrer">Watch on YouTube <span aria-hidden="true">↗</span></a></h3>
-          <p class="context">Open the original video for its title, thumbnail, and current details.</p>
-          <p class="video-id">Video {{ item.video_id }}</p>
-        {% else %}
-          <p class="source">{{ label }}{% if item.domain %} · {{ item.domain }}{% endif %}</p>
-          <h3>{% if item.url %}<a href="{{ item.url }}" rel="noreferrer">{{ item.title }} <span aria-hidden="true">↗</span></a>{% else %}{{ item.title }}{% endif %}</h3>
-          <p class="why">{{ item.why_here }}</p>
-          <p class="context"><span class="context-label">{{ item.summary_label }}:</span> {{ item.summary }}</p>
-          {% if item.also_covered_by %}<p class="coverage">Also covered by {% for other in item.also_covered_by %}{% if other.url %}<a href="{{ other.url }}" rel="noreferrer">{{ labels[other.source] }}</a>{% else %}{{ labels[other.source] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
-          {% if item.discussion_url %}<a class="discussion" href="{{ item.discussion_url }}" rel="noreferrer">Read the HN discussion →</a>{% endif %}
-        {% endif %}
-        </article></li>
-      {% else %}<li class="empty">{{ empty_lanes[lane] }}</li>{% endfor %}
-      </ol>
-    </section>
-  {% endfor %}
-  </main>
-  <section class="ending" aria-labelledby="end-title"><span class="end-mark" aria-hidden="true">✓</span><p class="eyebrow">YOU'RE ALL CAUGHT UP</p><h2 id="end-title">That's everything for this week</h2><p>Close the tab. Take a walk. We'll leave it here.</p></section>
-  <footer>
-    <p>Independent project. Attention and shared coverage are not proof of a claim.</p>
-    <p>Sources: <a href="https://news.ycombinator.com/" rel="noreferrer">Hacker News</a> · <a href="https://en.wikipedia.org/" rel="noreferrer">Wikipedia</a> (pageview data: CC0; article text on Wikipedia: CC BY-SA) · <a href="https://www.youtube.com/" rel="noreferrer">YouTube</a>. No affiliation or endorsement.</p>
-    <p>No accounts, analytics, cookies, autoplay, or visitor AI requests. Links take you to the original sites, whose privacy policies apply.</p>
-    <p>YouTube links only; no copied video metadata. <a href="https://www.youtube.com/t/terms" rel="noreferrer">YouTube terms</a> · <a href="https://policies.google.com/privacy" rel="noreferrer">Google privacy</a>.</p>
-    <p class="colophon">OFFSCROLL · LESS FEED, MORE LIFE</p>
-  </footer>
+  <div class="edition-bar"><p><span class="edition-dot" aria-hidden="true"></span>EDITION PREPARED <time{% if generated_at %} datetime="{{ generated_at }}" data-edition-time{% endif %}>{{ date }}</time></p><span>LOOKING BACK OVER THE LAST 7 DAYS</span></div>
+  <p class="freshness-notice" role="status" hidden>This edition is more than four days old. Check back for the next update; the date above is when these selections were prepared.</p>
+  <div class="reading-layout">
+    <aside class="reading-sidebar" aria-label="Edition guide">
+      <div class="sidebar-sticky"><p class="eyebrow">IN THIS EDITION</p>
+        <nav class="lane-nav" aria-label="Source sections">
+          <a href="#hackernews"><span class="nav-number">01</span><span>Ideas & technology</span><span>{{ lanes.hackernews|length }}</span></a>
+          <a href="#wikipedia"><span class="nav-number">02</span><span>The wider context</span><span>{{ lanes.wikipedia|length }}</span></a>
+          <a href="#youtube"><span class="nav-number">03</span><span>Something to watch</span><span>{{ lanes.youtube|length }}</span></a>
+        </nav>
+        <div class="reading-tools enhanced" hidden><p class="eyebrow">MAKE IT YOURS</p><div class="view-controls" role="group" aria-label="Filter selections"><button type="button" data-view="all" aria-pressed="true">All selections</button><button type="button" data-view="saved" aria-pressed="false">Saved <span data-saved-count>0</span></button></div><p class="progress-label" data-progress>0 of {{ count }} marked as read</p><progress value="0" max="{{ count or 1 }}" aria-label="Selections marked as read"></progress><p class="local-note">Your saves stay in this browser.<br>No account needed.</p></div>
+        <p class="sidebar-quote">“Attention is a choice.<br>Make a little room.”</p><span class="sidebar-caption">THE OFFSCROLL PHILOSOPHY</span>
+      </div>
+    </aside>
+    <main id="digest" tabindex="-1">
+    {% for lane, label in labels.items() %}
+      <section class="lane lane-{{ lane }}" id="{{ lane }}" aria-labelledby="{{ lane }}-heading">
+        <header class="section-heading"><div><p class="eyebrow">{% if lane == 'hackernews' %}01 / IDEAS & TECHNOLOGY{% elif lane == 'wikipedia' %}02 / THE WIDER CONTEXT{% else %}03 / SOMETHING TO WATCH{% endif %}</p>
+        <h2 id="{{ lane }}-heading">{% if lane == 'hackernews' %}Worth a closer look.{% elif lane == 'wikipedia' %}Follow your curiosity.{% else %}A change of pace.{% endif %}</h2>
+        <p class="section-description">{% if lane == 'hackernews' %}Ideas and conversations drawing attention on Hacker News.{% elif lane == 'wikipedia' %}Topics people are exploring on Wikipedia. Start with the context.{% else %}Recent videos from curated channels. A separate selection, on its own terms.{% endif %}</p></div><span class="section-count">{{ '%02d'|format(lanes[lane]|length) }}<span>selections</span></span></header>
+        {% if lane == 'youtube' %}<div class="video-intro"><a href="https://www.youtube.com/" rel="noreferrer"><img class="youtube-brand" src="{{ assets }}youtube-logo.png" alt="YouTube" height="48"></a><p>Choose “Load player” to connect to YouTube and see the original video details. Nothing loads until you choose. <a href="#privacy">Privacy details ↗</a></p></div>{% endif %}
+        <ol class="stories">
+        {% for item in lanes[lane] %}
+          <li class="story" data-key="{{ lane }}:{{ item.video_id if lane == 'youtube' else (item.url or item.discussion_url or (date ~ ':' ~ item.lane_rank)) }}"><article>
+          <div class="story-meta"><span class="source">{{ label }}{% if item.domain %}<span class="meta-dot">/</span>{{ item.domain }}{% endif %}</span><span class="rank" aria-label="Selection {{ item.lane_rank }} in {{ label }}">{{ '%02d'|format(item.lane_rank) }}</span></div>
+          {% if lane == 'youtube' %}
+            <div class="video-frame" data-video="{{ item.video_id }}"><div class="video-placeholder"><span class="play-symbol" aria-hidden="true">▷</span><span>Selected for this edition</span><button type="button" class="load-video enhanced" hidden>Load player <span aria-hidden="true">↗</span></button><noscript><a href="{{ item.url }}" rel="noreferrer">Open on YouTube ↗</a></noscript></div></div>
+            <h3 class="video-title"><a href="{{ item.url }}" rel="noreferrer">Watch on YouTube <span aria-hidden="true">↗</span></a></h3>
+            <p class="video-id">Video {{ item.video_id }}</p>
+          {% else %}
+            <h3>{% if item.url %}<a href="{{ item.url }}" rel="noreferrer">{{ item.title }} <span class="outbound" aria-hidden="true">↗</span></a>{% else %}{{ item.title }}{% endif %}</h3>
+            <p class="why">{{ item.why_here }}</p>
+            {% if item.also_covered_by %}<p class="coverage">Also covered by {% for other in item.also_covered_by %}{% if other.url %}<a href="{{ other.url }}" rel="noreferrer">{{ labels[other.source] }}</a>{% else %}{{ labels[other.source] }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+          {% endif %}
+          <div class="story-actions"><div>{% if item.discussion_url %}<a class="discussion" href="{{ item.discussion_url }}" rel="noreferrer">Join the discussion <span aria-hidden="true">↗</span></a>{% elif lane == 'wikipedia' and item.url %}<a class="discussion" href="{{ item.url }}" rel="noreferrer">Explore the topic <span aria-hidden="true">↗</span></a>{% endif %}</div><div class="item-tools enhanced" hidden><button class="save-button" type="button" aria-pressed="false">Save</button><button class="read-button" type="button" aria-pressed="false">Mark read</button></div></div>
+          </article></li>
+        {% else %}<li class="empty"><span aria-hidden="true">—</span><p>{{ empty_lanes[lane] }}</p></li>{% endfor %}
+        </ol>
+        <p class="saved-empty" hidden>No saved selections in this section yet. Use Save on something you'd like to revisit.</p>
+      </section>
+    {% endfor %}
+    <section class="ending" aria-labelledby="end-title"><span class="end-mark" aria-hidden="true">✳</span><p class="eyebrow">A CLEAR ENDING. A LITTLE BREATHING ROOM.</p><h2 id="end-title">That's everything for this week</h2><p>You don't need to keep up with everything.<br>Take what interested you. Leave the rest here.</p><a href="#intro-title">Back to the top ↑</a></section>
+    </main>
+  </div>
+  <section class="about" id="about" aria-labelledby="about-title"><div><p class="eyebrow">BUILT WITH INTENTION</p><h2 id="about-title">The internet is endless.<br>Your attention isn't.</h2><p>Offscroll is an independent project by Sherali: a small reading ritual for a very noisy world.</p><a class="text-link" href="https://github.com/sheralimfbads/offscroll" rel="noreferrer">Explore the project on GitHub ↗</a></div><div class="principles"><details><summary>How are selections made?</summary><p>Hacker News and Wikipedia use source-specific attention signals and may show related coverage. YouTube has its own independent selection, with at most one video per channel. Attention and shared coverage are not proof of a claim.</p></details><details><summary>When should I come back?</summary><p>The intended rhythm is Monday, Wednesday and Friday. Each edition considers the last seven days, so some selections may repeat. The date above always identifies the prepared edition; updates depend on successful collection and publication.</p></details><details><summary>Can I use it on my phone?</summary><p>Yes. Open this site in your mobile browser and choose “Add to Home Screen” from the browser menu or share sheet. It opens like a small reading app. An internet connection is required for new editions and original sources.</p></details><details id="privacy"><summary>Privacy & your saved selections</summary><p>No accounts, analytics, or visitor AI requests. Save, read and appearance choices stay in this browser and are never sent to us. Saved/read choices expire after 30 days; only selections still in this edition are shown. Hosting providers have their own request logs.</p><p>Loading a YouTube player connects to Google's privacy-enhanced player and shares your IP address and site origin. YouTube may store data and show ads; its own privacy policy applies. Offscroll does not copy titles, thumbnails or videos. Direct links take you to the original sites.</p><button type="button" class="clear-data enhanced" hidden>Clear my local preferences</button><p class="storage-status" role="status"></p></details></div></section>
+  <footer><a class="wordmark" href="./">offscroll.</a><div><p>LESS FEED. MORE LIFE.</p><p><a href="https://news.ycombinator.com/" rel="noreferrer">Hacker News</a> · <a href="https://en.wikipedia.org/" rel="noreferrer">Wikipedia</a> · <a href="https://www.youtube.com/" rel="noreferrer">YouTube</a></p><p>Pageviews: CC0 · Wikipedia article text: CC BY-SA. Independent; no affiliation or endorsement.</p><p><a href="#privacy">Privacy</a> · <a href="https://www.youtube.com/t/terms" rel="noreferrer">YouTube terms</a> · <a href="https://policies.google.com/privacy" rel="noreferrer">Google privacy</a></p></div><a class="back-top" href="#intro-title" aria-label="Back to top">↑</a></footer>
 </div>
+<p class="reader-status visually-hidden" aria-live="polite" role="status"></p>
 </body>
 </html>

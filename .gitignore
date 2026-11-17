@@ -24,3 +24,7 @@ dist/
 # Generated public export and short-lived private backups
 site/
 backups/
+node_modules/
+playwright-report/
+test-results/
+.browser-site/

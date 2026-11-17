@@ -45,6 +45,7 @@ class SourceSettings(BaseSettings):
 
     youtube_api_key: SecretStr | None = Field(default=None, repr=False)
     youtube_channels_file: Path = Path("config/youtube_channels.yaml")
+    youtube_run_limit: int = Field(default=7999, ge=1, le=7999)
     offscroll_sources: str = "hackernews,wikipedia,youtube"
 
     @field_validator("offscroll_sources")

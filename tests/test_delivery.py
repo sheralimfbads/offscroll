@@ -106,12 +106,20 @@ def test_read_only_http_routes_and_safe_errors(monkeypatch, lanes):
     app.dependency_overrides[database] = lambda: engine
     reader = Mock(return_value=lanes)
     monkeypatch.setattr("offscroll.web.read_digest", reader)
+    monkeypatch.setattr(
+        "offscroll.web.digest_identity",
+        lambda _: {"id": 1, "generated_at": "2026-11-16T00:00:00+00:00"},
+    )
     try:
         with TestClient(app) as client:
             page = client.get("/")
             assert page.status_code == 200 and "set-cookie" not in page.headers
             assert "PRIVATE GEMINI" not in page.text
             assert client.get("/static/style.css").status_code == 200
+            assert 'datetime="2026-11-16T00:00:00+00:00"' in page.text
+            manifest = client.get("/manifest.webmanifest").json()
+            assert manifest["start_url"] == "/"
+            assert manifest["icons"][0]["src"] == "/static/icon.svg"
             assert client.get("/api/digests/latest").json() == public_lanes(lanes)
             assert client.get("/api/digests/2026-W46").status_code == 200
             reader.assert_called_with(engine, week="2026-W46", purge=False)
@@ -182,3 +190,32 @@ def test_export_refuses_a_digest_changed_during_read(monkeypatch, tmp_path, lane
     with pytest.raises(DigestError, match="changed during export"):
         export_site(Mock(), tmp_path / "site")
     assert not (tmp_path / "site").exists()
+
+
+def test_export_dates_the_edition_not_the_reexport(monkeypatch, tmp_path, lanes):
+    monkeypatch.setattr("offscroll.delivery.read_digest", lambda _: lanes)
+    monkeypatch.setattr(
+        "offscroll.delivery.digest_identity",
+        lambda _: {"id": 7, "generated_at": "2026-10-01T03:17:00+00:00"},
+    )
+    page = export_site(Mock(), tmp_path / "site")
+    assert 'datetime="2026-10-01T03:17:00+00:00"' in page.read_text()
+    assert "01 October 2026" in page.read_text()
+    assert (page.parent / "app.js").is_file()
+    assert json.loads((page.parent / "manifest.webmanifest").read_text())["start_url"] == "./"
+
+
+def test_web_refuses_a_mixed_edition_during_rebuild(monkeypatch, lanes):
+    app.dependency_overrides[database] = lambda: Mock()
+    monkeypatch.setattr("offscroll.web.read_digest", lambda *args, **kwargs: lanes)
+    monkeypatch.setattr(
+        "offscroll.web.digest_identity",
+        Mock(side_effect=[{"id": 1}, {"id": 2}]),
+    )
+    try:
+        with TestClient(app) as client:
+            response = client.get("/")
+            assert response.status_code == 503
+            assert "being updated" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()

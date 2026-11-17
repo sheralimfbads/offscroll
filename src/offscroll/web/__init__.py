@@ -1,11 +1,12 @@
 """Read-only ASGI delivery; no provider calls and no credentials at import time."""
 
+import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from pydantic_settings import SettingsError
@@ -15,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from offscroll.config import load_settings
 from offscroll.db import create_db_engine
 from offscroll.delivery import PACKAGE, public_lanes, render_page
-from offscroll.digests import read_digest
+from offscroll.digests import digest_identity, read_digest
 from offscroll.ranking import DigestError
 
 app = FastAPI(title="Offscroll", docs_url=None, redoc_url=None, openapi_url=None)
@@ -62,9 +63,29 @@ def by_week(
 
 @app.get("/", response_class=HTMLResponse)
 def index(engine: Annotated[Engine, Depends(database)]) -> HTMLResponse:
+    try:
+        identity = digest_identity(engine)
+        lanes = load_public(engine)
+        if digest_identity(engine) != identity:
+            raise HTTPException(503, "Edition is being updated; try again.")
+    except DigestError:
+        raise HTTPException(404, "Digest unavailable.") from None
+    generated_at = str(identity["generated_at"])
     html = render_page(
-        load_public(engine), date=datetime.now(UTC).strftime("%d %B %Y"), asset_prefix="/static/"
+        lanes,
+        date=datetime.fromisoformat(generated_at).strftime("%d %B %Y"),
+        generated_at=generated_at,
+        asset_prefix="/static/",
     )
     return HTMLResponse(
         html, headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
     )
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> JSONResponse:
+    data = json.loads((PACKAGE / "static" / "manifest.webmanifest").read_text())
+    data.update({"id": "/", "start_url": "/", "scope": "/"})
+    for icon in data["icons"]:
+        icon["src"] = "/static/" + icon["src"]
+    return JSONResponse(data, media_type="application/manifest+json")

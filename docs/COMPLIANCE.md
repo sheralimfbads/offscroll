@@ -46,3 +46,23 @@ test_sources_integration.py covers wrong exports, stale HTML, NULL status,
 rejection counts, auth failures, and preserved active-channel cache. Error reasons
 are allowlisted in connectors/_http.py; remote messages/metadata never reach logs.
 The seven-day lane remains unchanged; see ADRs 0008 (addendum) and 0012.
+
+M7 (ADRs 0014–0015): public data remains YouTube ID/link-only. The visitor may
+explicitly load the official privacy-enhanced player, with standard controls,
+minimum 200×200 viewport, no automatic playback, and Referer identity. Tests in
+tests/browser/reading.spec.mjs block external requests by default, assert none
+before consent, inspect the official URL/referrer/dimensions after consent, and
+check mobile layout plus WCAG A/AA in light/dark themes. Source text stays escaped;
+no article text or video metadata enters browser preferences. Preferences can be
+cleared, expire on a subsequent visit, and are never sent to the application.
+Public privacy information describes Google's separate processing after consent.
+
+Cloud source data is confined to the disposable runner DB. Public artifacts include
+only presentation assets and allowlisted digest data. The per-run request cap and
+conservative workflow-history budget are enforced by quota.py/cloud.py and covered
+by test_cloud.py; the original daily DB guard remains. Workflow tests verify the
+enablement gate, main-only collection, limited permissions, no Gemini/remote DB
+secret, doctor-before-deploy and non-cancelling concurrency. Source-retention tests
+remain in force for the persistent local path. Cloud run-history deletion, shared
+keys and provider schedule availability remain operational limitations, not hidden
+claims of guaranteed compliance or availability.

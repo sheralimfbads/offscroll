@@ -1,0 +1,86 @@
+name: Build and publish an Offscroll edition
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 08:17 Asia/Tashkent, Monday / Wednesday / Friday. Avoid the busy hour boundary.
+    - cron: '17 3 * * 1,3,5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offscroll-edition
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: vars.ENABLE_EDITIONS == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    services:
+      postgres:
+        image: postgres:18.7-bookworm
+        env:
+          POSTGRES_USER: offscroll_ci
+          POSTGRES_DB: offscroll_ci
+          # Disposable loopback database only; no persistent owner data.
+          POSTGRES_PASSWORD: ci_placeholder_password
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U offscroll_ci -d offscroll_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://offscroll_ci:ci_placeholder_password@127.0.0.1:5432/offscroll_ci
+      OFFSCROLL_SOURCES: hackernews,wikipedia,youtube
+      YOUTUBE_RUN_LIMIT: '200'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - name: Install and check
+        run: |
+          make venv
+          make install
+          make check
+          make migrate
+      - name: Check the conservative cross-run API budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .venv/bin/python -m offscroll.cloud
+      - name: Collect a complete edition
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          .venv/bin/offscroll run-all
+          .venv/bin/offscroll build-digest
+          .venv/bin/offscroll export-site
+          .venv/bin/offscroll doctor
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site/
+          retention-days: 1
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish the checked edition
+        id: deployment
+        uses: actions/deploy-pages@v4

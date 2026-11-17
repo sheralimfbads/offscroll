@@ -316,3 +316,49 @@ actual metrics. We now tolerate one missing discovery day with a warning, requir
 six available lists. We still reject incomplete histories and never fill gaps with
 zero. This trades some topic coverage for availability while preserving exact counts
 for accepted topics (ADR 0013).
+
+## M7: From a working pipeline to a product you can return to
+
+The backend still produces the same source lanes. delivery.py turns its allowlisted
+public data into a complete HTML page. CSS defines the editorial design; app.js
+adds optional theme, saved selections and read progress in this browser. Turn off
+JavaScript and the original links and all three sections still work. This is
+progressive enhancement: basic reading does not wait for application code.
+
+The generation timestamp identifies the edition. Re-exporting an old digest no
+longer makes it look new. A stale notice appears after four days. Saved choices
+store only IDs/links, booleans and a timestamp; old choices are pruned after 30 days
+on a subsequent visit. They are not a server-side account or permanent archive.
+An official YouTube player is created only after an explicit choice, with its own
+current details supplied by Google. Our export never copies those details.
+
+For unattended publication, edition.yml starts a disposable Postgres service,
+migrates it and runs the existing collector/ranker/exporter. Doctor must pass before
+Pages receives the artifact. A bad collection cannot replace the good live edition.
+The DB is destroyed at job end; the page stays available on the static host.
+
+Worked example: the clean live rehearsal collected 629 HN stories, 45 complete
+Wikipedia topics and 96 videos; it selected 6/5/4 items and doctor passed. Fifteen
+Wikipedia candidates with incomplete histories were rejected. YouTube used 52 API
+requests. Cold runs cost more because the channel cache starts empty. To prevent
+fresh databases resetting limits, cloud.py budgets 200 calls per recorded workflow
+attempt before collection, while quota.py enforces that per-run maximum and the
+original per-request daily DB guard. No HTTP response body is logged for failures.
+
+Five interview questions:
+1. **Why no frontend framework?** Server-rendered content and a few local controls
+   don't need a second routing/state/build system; tests verify the actual behavior.
+2. **Why no service worker?** Offline edition caching adds staleness and retention
+   obligations. A home-screen shortcut can still load the current online edition.
+3. **Why two quota controls?** A per-run limit bounds cost; durable workflow history
+   limits repeated disposable runs. Each solves a different reset/failure problem.
+4. **What does the cold DB lose?** Historical snapshots and caches. The local DB
+   retains those learning capabilities; the public product consumes fresh snapshots.
+5. **Why browser tests as well as pytest?** Python tests cannot detect CSS overflow,
+   broken buttons or inaccessible colors. Playwright/axe cover these on phone and
+   desktop; screenshots and manual review provide additional evidence.
+
+Glossary: **progressive enhancement** adds optional capabilities to working HTML;
+**manifest** describes the home-screen app; **CSP** restricts what a page can load;
+**consent** here is the explicit player-load choice; **artifact** is the checked
+file bundle published separately from the temporary collection database.

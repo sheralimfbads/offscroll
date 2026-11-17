@@ -139,3 +139,48 @@ into logs/chat. Run the four commands below in an already-configured terminal:
 Stop the sequence on a failed command. A present API key is not validated by doctor;
 the preceding real run-all establishes authenticated collection. No billing,
 restriction removal, key rotation, or credential copying is automated.
+
+## M7 free recurring editions
+
+Primary launch path: edition.yml → a temporary PostgreSQL service → all sources →
+ranking → static export → doctor → GitHub Pages. No remote DATABASE_URL is needed.
+The existing persistent pipeline/pages workflows are alternatives; do not enable
+both launch paths. New editions target 08:17 Asia/Tashkent Mon/Wed/Fri. GitHub may
+queue or skip scheduled runs; read the actual edition date, not the calendar promise.
+
+After the reviewed code is merged into main, set main as the repository's default
+branch, select GitHub Actions as Pages source, set the existing YOUTUBE_API_KEY
+secret securely, and enable only ENABLE_EDITIONS. Keep Gemini billing off. Run:
+
+```bash
+gh variable set ENABLE_EDITIONS --body true
+gh workflow run edition.yml --ref main
+gh run list --workflow edition.yml --limit 5
+```
+
+Inspect the successful build/doctor/deploy and the Pages URL before relying on the
+schedule. A failure leaves the previous deployment intact. To pause:
+
+```bash
+gh variable set ENABLE_EDITIONS --body false
+```
+
+Budget errors fail closed. Dispatch a **new run**, never rerun an old job. Do not
+delete current Pacific quota-day edition run history; it is the conservative
+cross-run budget ledger. Every attempt reserves 200 calls, capped at 6,000, with
+one hour of prior-day overlap for midnight crossings. Each collector run also
+stops after 200 attempts and keeps the database-backed 7,999 daily guard. Reserve
+this project/key for Offscroll; other tools/repos are not counted by this ledger.
+If history is deleted or shared-key use is uncertain, pause until the next quota
+day or adopt a persistent quota database. Read ADR 0015 before changing bounds.
+
+No public raw/API backup is made. Only the small public site artifact is uploaded,
+with one-day retention; runner-local source data disappears at teardown. Persistent
+local analysis/backups remain available through the original workflow. A cloud
+edition is a fresh snapshot, not a historical database restore.
+
+For a safe local rehearsal use `scripts/check_postgres.py --live` with an exported
+YouTube key. It creates/removes its own DB and exports under build/cloud-rehearsal/.
+Run `scripts/check_postgres.py` without --live for integration tests only. Neither
+command reads .env or connects to the owner's database. Use a loopback HTTP server
+for local player review; file:// cannot provide YouTube's required site identity.

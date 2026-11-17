@@ -279,3 +279,24 @@ no secrets anywhere in git history.
 - ADR 0013 amends M3 discovery: tolerate one unavailable daily Wikipedia top list
   out of seven with a coverage warning; require six. Every accepted article still
   needs its complete 35-day series. Missing data is never replaced by zero.
+
+11. M7 PRODUCT AND PUBLIC LAUNCH (owner request, 2026-11-17)
+- Build on M6 on m7-product-launch. The owner chose calm editorial styling and
+  Monday/Wednesday/Friday editions; aim for a polished portfolio and regular phone use.
+- Keep Python/Postgres/Jinja; add progressive browser-local saves/read progress,
+  theme choice, source navigation, honest edition dates/staleness and home-screen
+  support. No tracking, accounts, infinite feed or autoplay.
+- ADR 0014 supersedes public link-only interaction: an explicit user choice may
+  load the official privacy-enhanced YouTube player. Public stored metadata remains
+  ID/link-only; no copied title/thumb or derived metric. Explain third-party privacy.
+- ADR 0015 adds free-first GitHub Pages editions from disposable PostgreSQL builds,
+  bounded cross-run quota accounting, health checks before publication and a
+  Monday/Wednesday/Friday 08:17 Asia/Tashkent schedule gated by ENABLE_EDITIONS.
+  The persistent-db workflows remain separately disabled. No paid service needed.
+- Use authorized local configuration only inside redacting subprocesses. The
+  owner permits this necessary live work; never print, log or commit values.
+- Add real browser/mobile/accessibility checks and real screenshots. Keep all
+  earlier Python/integration checks. Explain trade-offs and record live evidence.
+- Prepare the concrete tested release and consult the owner before superseding
+  prior never-push/owner-only settings and secret-transfer boundaries. Once released,
+  verify public URL, remote CI and a real edition job; never claim these from local tests.

@@ -14,6 +14,15 @@ from offscroll.digests import EMPTY_LANES, LANES, digest_identity, read_digest
 from offscroll.ranking import DigestError
 
 PACKAGE = Path(__file__).parent
+PUBLIC_ASSETS = (
+    "style.css",
+    "app.js",
+    "youtube-logo.png",
+    "icon.svg",
+    "icon-192.png",
+    "icon-512.png",
+    "manifest.webmanifest",
+)
 
 
 def safe_link(value: object) -> str | None:
@@ -80,7 +89,11 @@ def public_lanes(lanes: dict[str, list[dict[str, object]]]) -> dict[str, list[di
 
 
 def render_page(
-    lanes: dict[str, list[dict[str, object]]], *, date: str, asset_prefix: str = ""
+    lanes: dict[str, list[dict[str, object]]],
+    *,
+    date: str,
+    asset_prefix: str = "",
+    generated_at: str | None = None,
 ) -> str:
     env = Environment(
         loader=FileSystemLoader(PACKAGE / "templates"), autoescape=select_autoescape(["html"])
@@ -89,6 +102,7 @@ def render_page(
         lanes=lanes,
         labels=LANES,
         date=date,
+        generated_at=generated_at,
         count=sum(map(len, lanes.values())),
         assets=asset_prefix,
         empty_lanes=EMPTY_LANES,
@@ -120,7 +134,7 @@ def export_site(engine: Engine, output: Path = Path("site")) -> Path:
         raise DigestError("Digest changed during export; retry export-site.")
     now = datetime.now(UTC)
     output.mkdir(parents=True, exist_ok=True)
-    allowed = {"index.html", "digest.json", "style.css", ".nojekyll", "youtube-logo.png"}
+    allowed = {"index.html", "digest.json", ".nojekyll", *PUBLIC_ASSETS}
     if any(path.name not in allowed for path in output.iterdir()):
         raise DigestError("Export directory contains unrelated files; choose an empty directory.")
     _write_atomic(
@@ -129,8 +143,16 @@ def export_site(engine: Engine, output: Path = Path("site")) -> Path:
             {"exported_at": now.isoformat(), "digest": identity, "lanes": lanes}, ensure_ascii=True
         ),
     )
-    for asset in (PACKAGE / "static").iterdir():
-        _write_atomic(output / asset.name, asset.read_bytes())
+    for name in PUBLIC_ASSETS:
+        _write_atomic(output / name, (PACKAGE / "static" / name).read_bytes())
     _write_atomic(output / ".nojekyll", "")
-    _write_atomic(output / "index.html", render_page(lanes, date=now.strftime("%d %B %Y")))
+    generated_at = str(identity["generated_at"])
+    _write_atomic(
+        output / "index.html",
+        render_page(
+            lanes,
+            date=datetime.fromisoformat(generated_at).strftime("%d %B %Y"),
+            generated_at=generated_at,
+        ),
+    )
     return output / "index.html"

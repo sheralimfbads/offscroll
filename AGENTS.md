@@ -44,3 +44,16 @@
 - Never present unchecked claims as verified.
 
 Source of truth for scope and rules: docs/PROJECT_BRIEF.md
+
+## M7 owner amendment (2026-11-17)
+
+- Continue the product/portfolio launch: calm editorial design; Monday, Wednesday,
+  Friday editions for smartphone use. Keep the existing backend and source policies.
+- The owner permits using local configuration inside redacting subprocesses for
+  necessary live checks; never expose its contents or credential values to the model,
+  logs, screenshots, Git, or public output. Normal app settings stay env-only.
+- Run the added offline browser/accessibility checks as well as Python/integration
+  checks. Capture real screenshots, not fabricated product content.
+- Prepare the complete tested release before requesting the final remote-release
+  authorization that supersedes the earlier never-push/owner-only launch boundary.
+  No payments, billing enablement, force pushes, or destructive production actions.

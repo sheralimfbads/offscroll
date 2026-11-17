@@ -32,3 +32,22 @@ def test_container_context_and_compose_exclude_dotenv():
     compose = yaml.safe_load(Path("compose.yaml").read_text())
     assert compose["services"]["app"]["read_only"] is True
     assert compose["services"]["app"]["cap_drop"] == ["ALL"]
+
+
+def test_cloud_editions_require_enablement_and_publish_only_after_health_checks():
+    edition = yaml.safe_load(Path(".github/workflows/edition.yml").read_text())
+    triggers = edition.get("on", edition.get(True))
+    assert triggers["schedule"] == [{"cron": "17 3 * * 1,3,5"}]
+    build = edition["jobs"]["build"]
+    assert build["if"] == "vars.ENABLE_EDITIONS == 'true' && github.ref == 'refs/heads/main'"
+    assert build["timeout-minutes"] <= 25
+    assert build["env"]["YOUTUBE_RUN_LIMIT"] == "200"
+    assert "secrets.DATABASE_URL" not in str(build)
+    assert "GEMINI_API_KEY" not in str(build)
+    commands = "\n".join(step.get("run", "") for step in build["steps"])
+    assert commands.index("offscroll.cloud") < commands.index("offscroll run-all")
+    assert commands.index("offscroll doctor") > commands.index("offscroll export-site")
+    assert not any(step.get("continue-on-error") for step in build["steps"])
+    assert edition["jobs"]["deploy"]["needs"] == "build"
+    assert edition["concurrency"]["cancel-in-progress"] is False
+    assert edition["permissions"] == {"contents": "read"}
