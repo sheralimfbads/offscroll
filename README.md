@@ -5,16 +5,21 @@ Hacker News, Wikipedia and curated YouTube channels, selects up to 15 items in
 separate source lanes, and links you to the originals. No infinite feed, accounts,
 automatic playback, analytics or visitor AI calls.
 
+**[Open Offscroll](https://sheralimfbads.github.io/offscroll/)** · New editions Monday,
+Wednesday and Friday at **08:17 Asia/Tashkent**, subject to GitHub scheduling delays.
+Free GitHub Pages hosting; no account needed to read.
+
 ![Offscroll desktop — real digest](docs/images/offscroll-desktop.png)
 
 [See the mobile view](docs/images/offscroll-mobile.png). Actual browser captures of
-the real local digest, November 17, 2026. Publication status is in
+the live GitHub Pages edition, November 17, 2026. Release evidence is in
 [PROGRESS.md](docs/PROGRESS.md).
 
 A warm editorial interface, separate source sections, light/dark appearance,
 browser-local saves and read progress, and YouTube players that connect only after
 you choose. Works without JavaScript for core reading; add it to your phone’s home
-screen for a quiet reading shortcut. Target cadence: Monday, Wednesday and Friday.
+screen for a quiet reading shortcut. Saved/read choices stay in that browser.
+Use Safari’s share sheet or Chrome’s menu → Add to Home Screen. Internet is required.
 
 ```mermaid
 flowchart LR
@@ -168,7 +173,7 @@ warning does not affect passing tests; dependency upgrades should revisit it.
 
 [Architecture](docs/ARCHITECTURE.md) · [Learning walkthroughs](docs/HOW_IT_WORKS.md) ·
 [Compliance mapping](docs/COMPLIANCE.md) · [Progress/evidence](docs/PROGRESS.md) ·
-[Owner-only launch steps](docs/OWNER_TODO.md) · [Security](SECURITY.md).
+[Owner maintenance guide](docs/OWNER_TODO.md) · [Security](SECURITY.md).
 No license is selected yet; do not assume a license grant for this code or assets.
 
 Future experiments, each requiring a separate policy/design review: news RSS,

@@ -362,3 +362,15 @@ Glossary: **progressive enhancement** adds optional capabilities to working HTML
 **manifest** describes the home-screen app; **CSP** restricts what a page can load;
 **consent** here is the explicit player-load choice; **artifact** is the checked
 file bundle published separately from the temporary collection database.
+
+### The deployed edition
+
+The first public cloud run completed on November 17, 2026; its exact counts and
+links are in PROGRESS.md. The live site is https://sheralimfbads.github.io/offscroll/.
+`main` is the default branch, Pages accepts deployments only from main, and
+ENABLE_EDITIONS is the sole active publication gate. Scheduled builds run at
+03:17 UTC / 08:17 Asia/Tashkent on Monday, Wednesday and Friday. A normal code PR
+runs CI but does not collect or publish; the next schedule or a new manual dispatch
+builds an edition from that code. This separates code verification from external
+API availability. Start a fresh dispatch after repairing a collection failure;
+the quota guard intentionally rejects rerunning old jobs.
