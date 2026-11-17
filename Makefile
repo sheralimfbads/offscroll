@@ -63,3 +63,8 @@ serve:
 
 secrets:
 	$(PYTHON) scripts/scan_secrets.py
+
+.PHONY: test-browser
+test-browser:
+	npm run check:frontend
+	npm test

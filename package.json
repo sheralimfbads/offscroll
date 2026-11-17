@@ -1,0 +1,14 @@
+{
+  "name": "offscroll-browser-checks",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:browser": "playwright test",
+    "check:frontend": "node --check src/offscroll/static/app.js && prettier --check src/offscroll/static/style.css src/offscroll/static/app.js tests/browser/*.mjs playwright.config.mjs package.json"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.1",
+    "prettier": "3.10.1"
+  }
+}

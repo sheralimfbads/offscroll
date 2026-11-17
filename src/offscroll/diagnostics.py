@@ -11,7 +11,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from offscroll.config import SourceSettings
-from offscroll.delivery import public_lanes, render_page
+from offscroll.delivery import PACKAGE, PUBLIC_ASSETS, public_lanes, render_page
 from offscroll.digests import digest_identity, read_digest, shared_candidates, youtube_funnel
 from offscroll.operations import check_data, source_status
 from offscroll.ranking import DigestError, digest_window
@@ -108,10 +108,19 @@ def doctor(
             matches = matches and digest_identity(engine) == identity
             html = site / "index.html"
             if matches and not html.is_symlink():
-                date = datetime.fromisoformat(artifact["exported_at"]).strftime("%d %B %Y")
-                matches = html.read_text() == render_page(lanes, date=date)
+                generated_at = str(identity["generated_at"])
+                date = datetime.fromisoformat(generated_at).strftime("%d %B %Y")
+                matches = html.read_text() == render_page(
+                    lanes, date=date, generated_at=generated_at
+                )
             else:
                 matches = False
+            if matches:
+                matches = all(
+                    not (site / name).is_symlink()
+                    and (site / name).read_bytes() == (PACKAGE / "static" / name).read_bytes()
+                    for name in PUBLIC_ASSETS
+                )
             add(
                 "export",
                 matches,

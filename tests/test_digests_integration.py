@@ -532,6 +532,9 @@ def test_doctor_detects_wrong_export_stale_html_and_failed_source(seeded, monkey
     (tmp_path / "site" / "index.html").write_text("old HTML")
     assert doctor(engine, settings, tmp_path / "site")["ok"] is False
     export_site(engine, tmp_path / "site")
+    (tmp_path / "site" / "app.js").write_text("stale application script")
+    assert doctor(engine, settings, tmp_path / "site")["ok"] is False
+    export_site(engine, tmp_path / "site")
     connection.execute(
         text(
             "UPDATE raw.ingest_runs SET status='failed', error_summary='youtube_http_error "
