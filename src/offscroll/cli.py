@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import sys
+from pathlib import Path
 
 from pydantic import ValidationError
 from pydantic_settings import SettingsError
@@ -13,8 +14,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from offscroll.config import SourceSettings, load_settings
 from offscroll.connectors._base import ConnectorError
 from offscroll.db import create_db_engine
+from offscroll.digests import build_digest, read_digest, render_digest, summary_review_inputs
 from offscroll.operations import check_data, run_all, source_status
 from offscroll.pipeline import PipelineError, digest, execute_run
+from offscroll.ranking import DigestError
 from offscroll.retention import purge_expired
 
 
@@ -52,10 +55,17 @@ def main(argv: list[str] | None = None) -> int:
     transform = commands.add_parser("transform")
     transform.add_argument("--run-id", type=positive, help="Default: latest run with raw responses")
     transform.add_argument("--min-points", type=nonnegative, default=20)
-    commands.add_parser("digest")
+    for name in ("digest", "explain-digest", "build-digest"):
+        command = commands.add_parser(name)
+        command.add_argument("--week", help="ISO week, e.g. 2026-W46")
+        if name == "build-digest":
+            command.add_argument("--config", type=Path, default=Path("config/ranking.yaml"))
+    top = commands.add_parser("top")
+    top.add_argument("source", choices=["hackernews"])
     commands.add_parser("purge-raw")
     commands.add_parser("run-all")
     commands.add_parser("status")
+    commands.add_parser("summary-inputs")
     commands.add_parser("check-data")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="level=%(levelname)s %(message)s")
@@ -93,6 +103,18 @@ def main(argv: list[str] | None = None) -> int:
                 print(" ".join(f"{k}={json.dumps(v, default=str)}" for k, v in row.items()))
         elif args.command == "check-data":
             return 0 if print_checks(engine, SourceSettings().enabled_sources) else 1
+        elif args.command == "summary-inputs":
+            for entry in summary_review_inputs(engine):
+                print(json.dumps(entry, ensure_ascii=True))
+        elif args.command == "build-digest":
+            digest_id = build_digest(engine, week=args.week, config_path=args.config)
+            print(f"digest_id={digest_id} status=built")
+        elif args.command in ("digest", "explain-digest"):
+            print(
+                render_digest(
+                    read_digest(engine, week=args.week, explain=args.command == "explain-digest")
+                )
+            )
         else:
             rows = digest(engine)
             if not rows:
@@ -107,6 +129,9 @@ def main(argv: list[str] | None = None) -> int:
                 )
     except ValidationError, SettingsError:
         print("error=invalid_configuration Check exported environment settings.", file=sys.stderr)
+        return 1
+    except DigestError as exc:
+        print(f"error=digest message={json.dumps(str(exc))}", file=sys.stderr)
         return 1
     except (PipelineError, ConnectorError) as exc:
         print(f"error=pipeline message={json.dumps(str(exc))}", file=sys.stderr)

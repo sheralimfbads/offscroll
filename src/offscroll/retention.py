@@ -5,6 +5,13 @@ from sqlalchemy import Engine, text
 
 def purge_expired(engine: Engine) -> dict[str, int]:
     with engine.begin() as connection:
+        digest_links = connection.execute(
+            text("""
+            UPDATE core.digest_items di SET item_id = NULL FROM core.digests d
+            WHERE di.digest_id = d.id AND di.lane = 'youtube' AND di.item_id IS NOT NULL
+              AND d.generated_at <= now() - interval '30 days'
+        """)
+        ).rowcount
         raw = connection.execute(
             text("""
             DELETE FROM raw.api_responses AS r USING core.sources AS s
@@ -34,4 +41,10 @@ def purge_expired(engine: Engine) -> dict[str, int]:
             WHERE refreshed_at <= now() - interval '30 days'
         """)
         ).rowcount
-    return {"raw_responses": raw, "snapshots": snapshots, "items": items, "channels": channels}
+    return {
+        "raw_responses": raw,
+        "snapshots": snapshots,
+        "items": items,
+        "channels": channels,
+        "digest_links": digest_links,
+    }

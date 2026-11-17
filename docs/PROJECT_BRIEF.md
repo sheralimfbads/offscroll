@@ -34,22 +34,24 @@ Stack: Python (.python-version), httpx, pydantic(-settings), SQLAlchemy Core +
 psycopg 3, Alembic, pytest, ruff, mypy strict, argparse CLI.
 M2 may be in progress or not started: detect it.
 
-4. WORKING PROTOCOL
-- Autonomous inside a milestone. Per task: implement, test, make check and
-  make test-integration green, self-review your diff as a skeptical senior
-  engineer, update PROGRESS.md and HOW_IT_WORKS.md, commit.
-- No shortcuts: do not weaken or skip tests; no noqa / type: ignore /
-  except Exception just to get green without a comment explaining why; do not
-  change CI or lint config to get green without noting it in PROGRESS.md.
-- New dependencies: allowed with a one-line ADR justification if mainstream and
-  maintained (fastapi, uvicorn, jinja2, pyyaml). Anything needing an account or
-  payment: stop and ask.
-- Tests: unit tests offline (no real network); integration tests with Postgres;
-  fixtures in tests/fixtures; a `make smoke` target for manual live-API checks
-  (never in CI).
-- Milestone done = acceptance criteria met, make check + make test-integration
-  green, docs updated, git tag m<N>-done, and a printed report: what was built,
-  exact commands to try it, top risks, open questions.
+4. WORKING PROTOCOL (owner full-control amendment, 2026-11-16)
+- Proceed autonomously through M4 and M5; do not stop between milestones.
+  Implement, test, make check and make test-integration green, review the diff,
+  update PROGRESS.md/HOW_IT_WORKS.md, commit locally and tag each completed
+  milestone. Start m5-delivery from the tip of m4-ranking. Never push.
+- Resolve routine conflicts, policy issues and ambiguity conservatively, preserving
+  useful reduced features. Record significant choices in an ADR with context,
+  options, decision, residual risk, fallback, official URLs and verification date,
+  plus a one-line decisions-log entry in PROGRESS.md.
+- No weakened tests, unexplained noqa/type: ignore, or CI/lint changes to hide failures.
+  Unit tests stay offline; integration tests use PostgreSQL; manual smoke is not CI.
+- Dependencies need a one-line ADR justification. Do not enable billing or schedules.
+- Defaults: Gemini free tier for optional offline summaries; static GitHub Pages
+  export as primary hosting target; no license file yet. OWNER_TODO.md records
+  account, credential, deployment, license and other owner-only actions.
+- Completion includes full-history secret scan, compliance mapping, fresh-clone
+  README test, runbook/restore test, architecture and learning docs, and exact
+  owner commands. Remote CI/deployment cannot be claimed without owner execution.
 
 5. MILESTONES (P0 must ship, P1 should, P2 nice; if behind, cut P2 first)
 
@@ -120,43 +122,65 @@ M3 WIKIPEDIA + YOUTUBE + DATA QUALITY (P0)
   sources; check-data passes.
 
 M4 RANKING, CORROBORATION, DIGEST, SUMMARIES (P0 ranking + digest; P1 AI)
+Owner amendment 2026-11-16: the YouTube lane decision in ADR 0008 supersedes
+this section's original shared-scale YouTube ranking design.
 - Window: ISO week (Mon 00:00 to Sun 24:00 UTC), or rolling 7 days mid-week.
-- Scoring: deterministic pure functions, weights in config/ranking.yaml.
-  Per-source momentum in [0,1] by percentile within that source's candidate
-  pool: HN = 0.6*pct(score) + 0.4*pct(comments); YouTube = pct(views_per_day)
-  with views_per_day = views / max(age_days, 1) (never DISPLAY this derived
-  metric; show only API-provided counts); Wikipedia = 0.5*pct(7d views) +
-  0.5*pct(spike_ratio).
-- Corroboration: cluster items across sources by normalized title-token Jaccard
+- HN/Wikipedia scoring only: deterministic pure functions, weights in
+  config/ranking.yaml. Per-source momentum in [0,1] by percentile within that
+  source's candidate pool: HN = 0.6*pct(score) + 0.4*pct(comments);
+  Wikipedia = 0.5*pct(7d views) + 0.5*pct(spike_ratio).
+- Corroboration only between HN and Wikipedia: normalized title-token Jaccard
   similarity (threshold in config) plus shared URL/domain. final_score =
-  momentum * min(1.3, 1 + 0.15*(distinct_sources - 1)).
-- Selection: top 15; max 6 per source; max 2 per domain/channel; at least 1 per
-  source that has candidates; within a cluster keep the best and list the rest
-  as "also covered by"; deterministic tie-breaks.
-- Persist: core.digests(id, week_start, week_end, generated_at,
-  config_snapshot jsonb); core.digest_items(digest_id, rank, item_id nullable
-  ON DELETE SET NULL, final_score, score_breakdown jsonb, cluster jsonb,
-  summary_id). `offscroll build-digest [--week]` is idempotent (rebuild
-  replaces). `offscroll explain-digest` prints score breakdowns. The M2
-  `digest` command is superseded: rename it to `top hackernews` if needed.
-  Archived digests must respect the YouTube 30-day rule (older archived
-  digests keep only a link by video id for YouTube items).
-- "Why it's here" line is a template from metrics (not an LLM), e.g. "Top story
-  on Hacker News with 842 points; also covered on Wikipedia".
+  momentum * min(1.3, 1 + 0.15*(distinct_sources - 1)). Keep the best cluster
+  representative and list others as "also covered by". Deterministic tie-breaks.
+  YouTube never enters this scoring, clustering, multiplier, or coverage list.
+- YouTube-only lane: eligible videos published in the last 7 days, public and
+  embeddable per API status. Order at query time by views / max(age_in_days, 1),
+  using API view counts and publication timestamps. Never persist or display
+  that arithmetic result; no percentile, cross-source weight, or common scale.
+- Slots: max 6 Hacker News, 5 Wikipedia, 4 YouTube (15 total), max 2 per HN
+  external publisher and max 1 video per channel. Wikipedia's own source
+  domain is not an external publisher. Do not backfill a short lane from
+  another lane. A cluster appears once in its representative's source lane.
+- Persist with a new migration: core.digests(id, week_start, week_end,
+  window_kind, generated_at, config_snapshot jsonb); core.digest_items
+  (digest_id, lane, lane_rank, item_id nullable ON DELETE SET NULL,
+  final_score nullable, score_breakdown jsonb, cluster jsonb, content jsonb,
+  summary_id). final_score is NULL for YouTube; no YouTube cluster/summary.
+  offscroll build-digest [--week] is idempotent (rebuild replaces), with distinct
+  rolling/ISO keys. offscroll explain-digest shows HN/Wikipedia score breakdowns.
+  offscroll digest displays saved lanes; the M2 query becomes top hackernews.
+- Display: clearly labelled sections per source, ranks only inside a lane,
+  no single interleaved ranking. YouTube counts exactly as returned, unmodified
+  titles and thumbnails, youtube.com links or the official player. Follow the
+  verified branding guidelines. Never show curated category labels or safety/
+  suitability claims; if a category is shown, use only snippet.categoryId.
+- YouTube retention: keep the 30-day raw/core purge; archived digests retain
+  only video ID/link after 30 days. No search.list. The accepted implementation
+  stores only ID/link in digests from the start and hydrates fresh API metadata
+  for recent reads. Structural lane/rank survives; copied API metadata does not.
+- "Why it's here" for HN/Wikipedia is a template from metrics, not an LLM.
+  YouTube displays only source-provided counts, without a derived explanation.
+- ADR 0008 records accepted residual uncertainty, official URL/update/retrieval
+  dates, and fallbacks: chronological recent videos or API Compliance Audit.
 - Summaries (P1): Summarizer interface. TemplateSummarizer (no AI, deterministic,
-  default) plus ONE LLM provider via env var. Before choosing a provider, verify
-  current pricing, free tier, limits and terms for 2-3 providers, write the ADR,
-  then STOP and ask the owner to choose. LLM rules: input is only title,
+  default) plus ONE LLM provider via env var. Provider chosen: Gemini API free tier (ADR 0009), enabled only with
+  GEMINI_API_KEY, with a configurable stable Flash-Lite model and hard cap of
+  50 calls/day. Billing must remain disabled. Verify model/terms before coding.
+  Operational fallback is Groq free tier, then deterministic templates; API errors
+  and invalid Gemini outputs immediately use templates without retries. LLM rules: input is only title,
   source, domain and the source-provided description/extract (never scraped
   article bodies); output JSON validated by pydantic ({summary: max 2 neutral
   sentences in its own words}); on invalid output fall back to the template;
   inputs are untrusted data (delimited, system prompt states instruction
   hierarchy); store model, prompt_version, input hash, token counts and cost
   estimate in core.item_summaries; cache by input hash; hard daily call cap;
-  the UI labels it "AI-generated summary"; never use words like "verified";
+  the UI labels LLM output "AI-generated summary"; never use words like "verified";
   only "covered by N sources". Tests use a fake provider, including prompt
   injection fixtures (titles like "ignore previous instructions").
 - Acceptance: unit tests for scoring, clustering and selection with fixtures;
+  lane isolation, one video per channel, NULL YouTube final_score, and absence
+  of derived YouTube metrics in stored/rendered digests;
   an integration test building a digest from seeded data; a real build gives
   10-15 items across at least 2 sources; docs/RANKING.md documents formulas and
   limitations.
@@ -179,14 +203,14 @@ M5 DELIVERY, DEPLOYMENT, PORTFOLIO POLISH
   disabled until the owner confirms secrets and hosting.
 - Hosting: write docs/decisions/00xx-hosting.md with 2-3 options verified from
   official docs (current free tiers, limits, whether a payment card is
-  required). Prefer options needing no card. Then STOP and ask the owner to
-  choose. After the choice: implement it, scheduled pg_dump backups with a
+  required). Prefer options needing no card. Default to GitHub Pages static export; record alternatives without waiting.
+  For the chosen target: implement it, scheduled pg_dump backups with a
   tested restore, and docs/RUNBOOK.md.
 - P0 polish: README top section (pitch, screenshot placeholder, architecture
   mermaid, stack, run in 3 commands, key design decisions, honest limitations,
   roadmap: news RSS, Google Fact Check API, X connector, dbt, Dagster),
   docs/ARCHITECTURE.md, Dependabot config, SECURITY.md, pre-commit hooks,
-  secret scan of git history. Ask the owner about the license.
+  secret scan of git history. Record the pending license in docs/OWNER_TODO.md; do not add a license file.
 - Acceptance: a fresh clone following the README produces a local site with a
   real digest; CI green; static export builds.
 
@@ -211,12 +235,12 @@ decision using the existing template.
 - Paraphrase only; never copy article text or images; link out to originals.
 - Never claim anything is verified or true; only "covered by N sources".
 
-8. STOP AND ASK THE OWNER (otherwise keep going)
-Needs for accounts, payment or credentials; hosting choice; LLM provider
-choice; license; changing already-applied migrations (create a new migration
-instead); scope additions; conflicting requirements; or the same failure
-persisting after two attempts (then summarize the error, what you tried, and
-the options).
+8. PHYSICAL BLOCKERS ONLY (owner full-control amendment, 2026-11-16)
+Stop only the affected action for account creation, payments, credentials/secrets,
+pushing/merging, destructive or irreversible data actions, or the same failure
+persisting after three genuinely different attempts. Record it in PROGRESS.md
+and continue all unaffected work. No routine design, provider, hosting, license,
+or milestone-boundary approval gates remain. Never read .env, including indirectly.
 
 9. DEFINITION OF DONE (project)
 CI green; a real digest generated from live data; a static or deployed site;

@@ -397,3 +397,60 @@ Request parameters and `videoChartNotFound` follow the
 [videos.list reference](https://developers.google.com/youtube/data/reference/rest/v3/videos/list?hl=en);
 quota handling follows the
 [API error reference](https://developers.google.com/youtube/data/reference/rest/v3/errors?hl=en).
+
+## Build a digest (M4)
+
+With database settings already exported (the application does not read `.env`):
+
+```bash
+make migrate
+.venv/bin/offscroll build-digest
+.venv/bin/offscroll digest
+.venv/bin/offscroll explain-digest
+# An explicit ISO week; rebuild replaces the saved week:
+.venv/bin/offscroll build-digest --week 2026-W46
+.venv/bin/offscroll digest --week 2026-W46
+# The original M2 single-source query:
+.venv/bin/offscroll top hackernews
+```
+
+Collect sources first with `offscroll run-all` when fresh data is needed.
+Pre-M4 YouTube rows require a normal collection refresh before eligibility because
+M4 requires explicit public status. Building itself uses the database only.
+The digest has separate HN (max 6), Wikipedia (max 5), and YouTube (max 4) lanes;
+short lanes are not backfilled. YouTube has one video per channel, no common
+score, no cross-source clustering, and no saved or displayed derived metric.
+Archived YouTube entries become link-only at 30 days. Schedule `purge-raw` daily
+before unattended use; include backups in retention planning.
+
+Templates are labelled source context, not AI summaries. LLM provider selection
+is pending. See [ranking formulas and limitations](docs/RANKING.md) and
+[the accepted YouTube lane decision](docs/decisions/0008-m4-youtube-scoring.md).
+M4 provides a CLI display; the HTML site and graphical branding are M5 work.
+
+## Privacy and optional offline summaries
+
+Without `GEMINI_API_KEY`, builds use deterministic source context. Optional Gemini
+uses `GEMINI_MODEL=gemini-2.5-flash-lite` (stable, free-tier eligible as checked
+2026-11-16). **Keep billing disabled** in the Google project. The application
+cannot infer the billing tier from a key. Never paste credentials into chat or
+commit them. Settings read exported environment variables, never `.env`.
+
+Before sending text, run `offscroll summary-inputs` locally and review the exact
+four fields. Add only approved `approval_hash` values to
+`config/summary_public_inputs.json`. Approve public text without personal or
+sensitive data; public availability alone is insufficient. The application sends
+only title, source, domain, and an optional source-provided description/extract.
+It never sends article bodies, author/user identities, URLs, YouTube data, or
+visitor information. Current connectors do not fetch article descriptions, so
+that field is normally null. Changed input hashes fail closed until reviewed.
+
+Free-tier inputs/outputs may improve Google products and be read by reviewers.
+Requests happen only in the offline build, with a durable 50-attempt UTC daily
+cap; errors/429/invalid JSON use templates without retry. The cap covers collectors
+sharing this database, not other software using the same project. Successful
+summaries are cached and labelled AI-generated; they are not factual validation.
+
+Public exports/web views use templates conservatively because offline generation
+does not establish a regional-terms exemption for a worldwide site. No visitor
+request invokes an LLM. See [ADR 0009](docs/decisions/0009-summary-provider.md).

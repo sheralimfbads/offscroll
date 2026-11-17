@@ -92,12 +92,19 @@ def load_channels(path: Path) -> list[ChannelConfig]:
 
 
 class Snippet(BaseModel):
-    model_config = ConfigDict(hide_input_in_errors=True, str_strip_whitespace=True)
+    model_config = ConfigDict(hide_input_in_errors=True)
     title: str = Field(min_length=1, strict=True)
     channelId: ChannelId
     channelTitle: str = Field(min_length=1, strict=True)
     publishedAt: AwareDatetime
     thumbnails: dict[str, dict[str, object]] = Field(default_factory=dict)
+
+    @field_validator("title")
+    @classmethod
+    def nonblank_title(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Expected a nonblank title.")
+        return value
 
 
 class Statistics(BaseModel):
@@ -169,7 +176,7 @@ def parse(payload: dict[str, object], *, min_points: int = 20) -> ParseResult:
             Record(
                 external_id=video.id,
                 kind="video",
-                title=video.snippet.title.strip(),
+                title=video.snippet.title,
                 url=f"https://www.youtube.com/watch?v={video.id}",
                 discussion_url=None,
                 domain="youtube.com",
@@ -181,6 +188,7 @@ def parse(payload: dict[str, object], *, min_points: int = 20) -> ParseResult:
                 metadata={
                     "channel_id": video.snippet.channelId,
                     "embeddable": video.status.embeddable,
+                    "privacy_status": video.status.privacyStatus,
                     "thumbnails": thumbnails,
                     "content_details": video.contentDetails,
                     "attribution": "YouTube",

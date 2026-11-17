@@ -1,8 +1,10 @@
 # Offscroll progress
 
-Last resume check: 2026-11-15 (Asia/Tashkent). M3 live acceptance passed; milestone closed locally.
+Last resume check: 2026-11-16 (Asia/Tashkent). Full-control directive accepted.
+M4 P1 is implemented and validated; continue directly into M5 after local tagging.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
-The brief's embedded date is preserved verbatim; use the date above for this resume check.
+The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
+mission date remains historical. Use the date above for this resume check.
 
 ## Milestone checklist
 
@@ -27,8 +29,18 @@ The brief's embedded date is preserved verbatim; use the date above for this res
   - [x] Finish two public-source live checks and record final review/commits.
   - [x] Owner: run all three sources twice with YouTube credentials; show status/check-data.
   - [x] Record acceptance, rerun local checks, commit closeout, and tag `m3-done`.
-  - [ ] Owner: push branch/tag for fresh CI and merge; automation never pushes.
-- [ ] M4: Ranking, corroboration, persisted digests, and summaries.
+  - [x] Owner: merged M3 into main at `35429cb`; automation did not push.
+- [x] M4: Ranking, corroboration, persisted digests, and summaries.
+  - [x] Accept the owner-selected YouTube lane design in ADR 0008 and the brief.
+  - [x] HN/Wikipedia scoring, clustering, selection, config, and offline fixtures.
+  - [x] Isolated YouTube SQL ordering, one per channel, no stored/rendered ratio.
+  - [x] Migration 0004, atomic digest replacement, CLI lanes and explanations.
+  - [x] Retention-aware YouTube display and link-only archives; template summaries.
+  - [x] Local checks, PostgreSQL tests, migration round trip, real two-source build.
+  - [x] Verify two LLM provider options and prepare ADR 0009.
+  - [x] Owner chose Gemini free tier; ADR 0009 accepted.
+  - [x] Implement Gemini, validate cache/cap/fallbacks, close locally with `m4-done`.
+  - [ ] Owner: push M4 and obtain fresh CI; automation never pushes.
 - [ ] M5: Delivery, deployment decisions, runbook, and portfolio polish.
 
 At the initial M2 audit no historical completion tags existed; M2 closeout added `m2-done`.
@@ -36,9 +48,13 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m3-sources`, based on main's M2 merge `b9c906d`.
+- Current branch: `m4-ranking`, rebased onto M3's merge `35429cb` on `main`.
+- This implementation turn began clean at preflight commit `b90ef24`. Local and
+  cached remote main both point to `35429cb`, consistent with the owner's merge
+  confirmation. No remote fetch or push was needed.
 - M2 implementation commits: `2925358`, `fcff60f`, `8573c66`, `df9e49e`.
-- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`;
+- Migrations: `0001_ingest_runs.py`, `0002_hackernews.py`, `0003_sources.py`,
+  and the new `0004_digests.py`;
   do not edit applied migrations.
 - Python minor: 3.14, shared by `.python-version`, package metadata, tooling, and CI.
 - Runtime dependencies were unchanged by M2. M3 adds PyYAML and development-only
@@ -55,8 +71,8 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 - HN raw retention is a 90-day project policy, enforced by the manual `purge-raw` command.
 - Resume M2 closeout first: its code is implemented, but the new documentation, smoke,
   contact-information, and tag requirements were not yet present.
-- The new brief is authoritative over earlier workflow instructions; never push and
-  stop after each milestone report.
+- 2026-11-16: full-control directive supersedes milestone/decision stops; continue
+  through M5, never push, keep billing and schedules disabled.
 - On 2026-11-15 the owner delegated the CI credential choice. Keep the public
   disposable test password as a narrow exception; real API/production credentials
   still require GitHub Actions secrets. This preserves fork PR testing without
@@ -67,16 +83,119 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
   [ADR 0004](decisions/0004-runtime-and-ci.md). No dependencies, applied migrations,
   CI configuration, or lint rules changed during closeout.
 
+- 2026-11-16: ADR 0009 accepts stable Gemini 2.5 Flash-Lite, reviewed inputs,
+  durable 50/day cap, template public delivery, and no billing.
+
 ## Open questions / owner actions
 
-1. **M3 acceptance passed:** owner supplied successful live results for runs 10–15.
-   No API key was shared with the agent. Owner pushes the completed branch/tag for fresh CI.
-2. **Before M4 YouTube scoring:** resolve the derived-metrics policy concern in ADR 0001.
-   Hiding a computed metric from display does not by itself establish permission to compute it.
-3. **Later explicit stops:** owner chooses any LLM provider, hosting, and project license.
-4. Owner pushes and merges completed milestone commits/tags and runs CI for those commits.
+1. Owner creates/configures any required accounts, keeps Gemini billing disabled,
+   supplies credentials outside chat, and runs optional live authenticated smoke.
+2. Owner pushes/merges; no remote CI or deployment is claimed locally.
+3. M5 defaults: GitHub Pages static export, disabled schedule, license deferred.
+   Exact owner steps belong in docs/OWNER_TODO.md; do not stop local work for them.
 
-## Current milestone report: M3 complete locally
+## M4 completion report (P1)
+
+Gemini adapter implemented behind Summarizer with stable configurable
+`gemini-2.5-flash-lite`, header-only masked credentials, reviewed public input hashes,
+Pydantic JSON validation, neutral two-sentence limit, immediate template fallbacks,
+success cache before requests, token/model/prompt recording, and a durable atomic
+50-attempt UTC daily cap. No new dependency/schema migration was necessary: the
+existing quota table has a distinct gemini row. Billing and visitor-triggered LLM
+calls are absent. Public delivery conservatively uses templates because offline
+batching does not establish a regional-terms exemption. ADR 0009 records official
+URLs/dates and the Groq-then-template operational fallback (no automatic second
+processor). No live Gemini request or .env read occurred.
+
+Validation: make check passed (163 unit tests, 32 integration deselected; Ruff and
+strict mypy). make test-integration passed 32 tests against disposable PostgreSQL;
+cap durability, cache reuse, fake injection/HTTP errors, malformed JSON, approval
+privacy boundary and secret masking are covered. Database/storage cleaned up.
+P0 live acceptance remains the 11-item public-source digest recorded below.
+
+Self-review risks: (1) semantic privacy depends on exact-input human review;
+(2) a key cannot establish billing/project-region settings, which remain owner
+responsibilities; (3) valid model JSON may still contain inaccurate prose.
+Fallbacks keep collection/build usable. Local tag m4-done closes M4; proceed
+immediately onto m5-delivery. No push, billing, account creation or live secret use.
+
+## Historical M4 P0 report (provider choice subsequently resolved)
+
+The owner merged M3, rebased this branch, and selected an isolated YouTube lane
+on 2026-11-16. ADR 0008 and the M4 brief now record that accepted amendment,
+including official policy/branding URLs and verification dates. The previous
+exclusion proposal was not implemented.
+
+Implementation commits: `c4e9546` (ranking/design) and `98fb61b`
+(persistence/CLI/retention), followed by the validation/provider-decision record.
+
+Built deterministic HN/Wikipedia percentiles, complete-link title/URL clustering,
+corroboration, lane/publisher caps, and explainable config snapshots. YouTube is
+ordered only within its SQL query; the ratio never leaves `ORDER BY`. Caps are
+6 HN, 5 Wikipedia, 4 YouTube, one video per channel; short lanes remain short.
+The new migration adds digests, items, and summary-cache tables. Database checks
+reject YouTube scores, clusters, summaries, copied titles/counts, and malformed
+link payloads. YouTube titles retain their exact API whitespace after refresh.
+
+`build-digest [--week]` atomically replaces the selected window; rolling and ISO
+keys are separate. `digest` and `explain-digest` render labelled source sections;
+the former M2 query is `top hackernews`. Templates provide source context with
+input-hash reuse and zero tokens/cost. YouTube archives store only ID/link and
+hydrate current metadata while both archive and API data are younger than 30 days.
+The purge detaches expired archive references even for recently refreshed videos.
+
+Validation on 2026-11-16:
+
+- `make check`: Ruff and strict mypy passed (18 source files); 144 unit tests
+  passed, 30 integration tests deselected.
+- `make test-integration`: 30 passed, 144 deselected in 4.34s against disposable
+  PostgreSQL 18.7, with mocked HTTP.
+- Migration upgrade to 0004, downgrade to 0003, then upgrade to 0004 passed.
+  Applied migrations 0001–0003 were not changed.
+- Real HN/Wikipedia collection in a separate disposable database succeeded:
+  623 HN items and 58 Wikipedia topics. Two builds returned the same digest ID;
+  the saved digest contained 11 items, HN=6/Wikipedia=5/YouTube=0. This meets the
+  real-build acceptance of 10–15 items across at least two sources. It is not a
+  claim of live YouTube acceptance for M4.
+- Seeded integration acceptance produced all 15 slots (6/5/4), verified one video
+  per channel, lane isolation, NULL YouTube scores, rollback on failed rebuild,
+  metadata expiry, one-day age floor, explicit public-status eligibility, and cache reuse. The exact-expiry test uses the PostgreSQL
+  transaction clock to avoid comparing against a slightly later Python timestamp.
+- Temporary containers/storage were removed. No `.env` or existing API key was
+  read; the owner's database was not changed. No dependencies, CI, or lint
+  configuration changed. HTML export and graphical branding remain M5 scope.
+
+Self-review checked formula bounds/ties, untrusted-title escaping, SQL-only video
+ordering, JSON schema constraints (including JSON null), transaction rollback,
+window identity, and reference cleanup. Top three risks:
+
+1. YouTube policy wording retains the uncertainty accepted in ADR 0008. Stored
+   status reflects the last API observation; collection must refresh it. Fallbacks
+   are chronological videos or an API Compliance Audit, not a hidden shared score.
+2. Coverage is limited by collection and matching heuristics. HN/Wikipedia use
+   current metadata/observations, so historical rebuilds are not point-in-time
+   reconstructions, and source agreement cannot establish factual truth.
+3. Cleanup cannot run while the app is stopped. Daily purge, backup expiry, and
+   retention-aware M5 exports remain necessary before unattended publication.
+
+Try with exported settings:
+
+```bash
+make migrate
+.venv/bin/offscroll build-digest
+.venv/bin/offscroll digest
+.venv/bin/offscroll explain-digest
+.venv/bin/offscroll build-digest --week 2026-W46
+.venv/bin/offscroll digest --week 2026-W46
+```
+
+M4 is still open at the brief's LLM-provider decision. ADR 0009 compares Google
+Gemini and Groq using current official pricing, free limits, and terms. Provider
+requests, fake-provider validation/fallback tests, and a hard daily call cap are
+pending the choice, not silently claimed complete. No `m4-done` tag yet and no
+M5 work started. The owner may choose a provider or explicitly defer P1.
+
+## Previous milestone report: M3 complete locally
 
 Owner-provided live output on 2026-11-15 establishes two successful `run-all`
 executions, successful `status` for all three sources, and a final `check-data` pass.

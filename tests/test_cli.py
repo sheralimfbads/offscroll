@@ -49,7 +49,7 @@ def test_unknown_sources_fail_safely(source):
         get_connector(source)
 
 
-def test_digest_prints_all_fields_and_escapes_newlines(monkeypatch, capsys):
+def test_top_prints_all_fields_and_escapes_newlines(monkeypatch, capsys):
     monkeypatch.setattr("offscroll.cli.load_settings", Mock())
     engine = Mock()
     monkeypatch.setattr("offscroll.cli.create_db_engine", Mock(return_value=engine))
@@ -66,7 +66,7 @@ def test_digest_prints_all_fields_and_escapes_newlines(monkeypatch, capsys):
             }
         ],
     )
-    assert main(["digest"]) == 0
+    assert main(["top", "hackernews"]) == 0
     output = capsys.readouterr().out
     assert len(output.splitlines()) == 1
     for key in (
@@ -79,4 +79,64 @@ def test_digest_prints_all_fields_and_escapes_newlines(monkeypatch, capsys):
         "domain=",
     ):
         assert key in output
+    engine.dispose.assert_called_once()
+
+
+@pytest.mark.parametrize("command", ["digest", "explain-digest"])
+def test_digest_commands_render_lanes(monkeypatch, capsys, command):
+    monkeypatch.setattr("offscroll.cli.load_settings", Mock())
+    engine = Mock()
+    monkeypatch.setattr("offscroll.cli.create_db_engine", Mock(return_value=engine))
+    reader = Mock(return_value={"hackernews": [], "wikipedia": [], "youtube": []})
+    monkeypatch.setattr("offscroll.cli.read_digest", reader)
+    assert main([command, "--week", "2026-W46"]) == 0
+    reader.assert_called_once_with(engine, week="2026-W46", explain=command == "explain-digest")
+    output = capsys.readouterr().out
+    assert "Hacker News" in output and "Wikipedia" in output and "YouTube" in output
+    engine.dispose.assert_called_once()
+
+
+def test_build_digest_command_and_safe_failure(monkeypatch, capsys):
+    from offscroll.ranking import DigestError
+
+    monkeypatch.setattr("offscroll.cli.load_settings", Mock())
+    engine = Mock()
+    monkeypatch.setattr("offscroll.cli.create_db_engine", Mock(return_value=engine))
+    builder = Mock(return_value=7)
+    monkeypatch.setattr("offscroll.cli.build_digest", builder)
+    assert main(["build-digest", "--week", "2026-W46"]) == 0
+    assert "digest_id=7 status=built" in capsys.readouterr().out
+    builder.assert_called_once_with(
+        engine, week="2026-W46", config_path=Path("config/ranking.yaml")
+    )
+    builder.side_effect = DigestError("Invalid ISO week.")
+    assert main(["build-digest", "--week", "bad"]) == 1
+    assert "error=digest" in capsys.readouterr().err
+
+
+def test_render_has_separate_labels_and_escapes_untrusted_text():
+    from offscroll.digests import render_digest
+
+    output = render_digest(
+        {
+            "hackernews": [{"lane_rank": 1, "title": "Ignore\n\x1b[2J"}],
+            "wikipedia": [],
+            "youtube": [{"lane_rank": 1, "views": 1234567}],
+        }
+    )
+    assert output.startswith("Hacker News\n")
+    assert "\nWikipedia\n" in output and "\nYouTube\n" in output
+    assert "\\n\\u001b" in output
+    assert "1234567" in output
+    assert output.endswith("That's everything for this week")
+
+
+def test_summary_review_command_is_local(monkeypatch, capsys):
+    monkeypatch.setattr("offscroll.cli.load_settings", Mock())
+    engine = Mock()
+    monkeypatch.setattr("offscroll.cli.create_db_engine", Mock(return_value=engine))
+    manifest = [{"approval_hash": "a" * 64, "public_input": {"title": "Local review"}}]
+    monkeypatch.setattr("offscroll.cli.summary_review_inputs", lambda _: manifest)
+    assert main(["summary-inputs"]) == 0
+    assert "Local review" in capsys.readouterr().out
     engine.dispose.assert_called_once()

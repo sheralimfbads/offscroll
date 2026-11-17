@@ -9,11 +9,12 @@
 
 ## Workflow
 
-- Inside the current milestone, proceed without waiting for approval: finish the
-  whole task, run `make check`, and report a short summary.
-- Stop and ask only if a dependency is needed that the task did not list, a DB
-  schema change goes beyond the task, secrets or CI secrets are involved, or
-  requirements conflict.
+- Proceed through M4 and M5 without stopping between milestones. Run make check
+  and make test-integration, review, update docs, commit and tag each milestone.
+- Follow the owner's 2026-11-16 full-control directive in the project brief.
+  Resolve design/policy ambiguity conservatively and document it. Only physical
+  blockers (accounts, payment, secrets, push/merge, destructive actions, or three
+  genuinely different failed attempts) stop affected work; continue the rest.
 - Work on a branch named `m<N>-<topic>` and commit locally in small logical
   commits with imperative messages. Never commit secrets.
 - Before reporting, review your own diff as a skeptical senior engineer and list

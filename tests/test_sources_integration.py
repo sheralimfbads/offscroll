@@ -136,7 +136,13 @@ def test_retention_deletes_old_observations_even_for_refreshed_items(database, f
     )
     assert "expired_youtube_data" in check_data(engine, fake_sources)
     counts = purge_expired(engine)
-    assert counts == {"raw_responses": 1, "snapshots": 1, "items": 0, "channels": 1}
+    assert counts == {
+        "raw_responses": 1,
+        "snapshots": 1,
+        "items": 0,
+        "channels": 1,
+        "digest_links": 0,
+    }
     assert connection.scalar(text("SELECT count(*) FROM core.items WHERE source = 'youtube'")) == 1
     assert check_data(engine, fake_sources) == []
     connection.execute(
