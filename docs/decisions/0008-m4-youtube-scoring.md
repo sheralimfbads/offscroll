@@ -88,3 +88,14 @@ before unattended operation.
 M5 implementation note (2026-11-16): ADR 0010 uses the official logo/name link
 and publishes only video ID/link from day one. The local CLI retains the recent
 API-metadata display described above; exported copies need no later metadata purge.
+
+## M6 incident addendum — 2026-11-17
+
+Keep the seven-day lane window. Pre-change diagnosis found 70 eligible seven-day
+videos from 18 channels and four already-selected videos in the owner's database.
+The empty site was an unrelated two-source acceptance export, not thin uploads.
+The conditional fourteen-day fallback is therefore not needed for this incident.
+Legacy rows without explicit public status remain ineligible; a real API refresh
+must supply that status. ADR 0012 adds shared selection/funnel predicates, source
+health and export provenance checks without changing the API-only ordering or
+mixing YouTube with other sources. See INCIDENT-youtube.md for exact stage counts.

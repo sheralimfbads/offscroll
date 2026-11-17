@@ -144,3 +144,29 @@ def test_page_cap_warns_about_truncation(delays, caplog):
 def test_bad_envelope_parse_fails():
     with pytest.raises(ConnectorError, match="hits list"):
         parse({"hits": None})
+
+
+def test_hn_respects_retry_after_and_disables_redirects(monkeypatch):
+    from offscroll.connectors.hackernews import _request
+
+    pauses = []
+    monkeypatch.setattr("offscroll.connectors.hackernews.time.sleep", pauses.append)
+    replies = [httpx.Response(429, headers={"Retry-After": "20"}), httpx.Response(200, json={})]
+    with httpx.Client(transport=httpx.MockTransport(lambda _: replies.pop(0))) as client:
+        _request(client, {})
+    assert pauses == [20]
+    requests = []
+    with (
+        httpx.Client(
+            follow_redirects=True,
+            transport=httpx.MockTransport(
+                lambda request: (
+                    requests.append(request)
+                    or httpx.Response(302, headers={"Location": "https://elsewhere.example/"})
+                )
+            ),
+        ) as client,
+        pytest.raises(ConnectorError, match="HTTP 302"),
+    ):
+        _request(client, {})
+    assert len(requests) == 1

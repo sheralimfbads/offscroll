@@ -22,7 +22,7 @@ from sqlalchemy import Engine, text
 
 from offscroll.config import SourceSettings
 from offscroll.connectors._base import ConnectorError, ParseResult, RawResponse, Record
-from offscroll.connectors._http import QuotaError, SourceHTTPError, request_json
+from offscroll.connectors._http import GOOGLE_REASONS, QuotaError, SourceHTTPError, request_json
 from offscroll.quota import YouTubeQuota
 
 BASE_URL = "https://www.googleapis.com"
@@ -52,12 +52,15 @@ class YouTubeSourceError(ConnectorError):
         resource: Literal["channels", "playlistItems", "videos"],
         channel_index: int | None = None,
         http_status: int | None = None,
+        reason: str | None = None,
     ) -> None:
         parts = [f"youtube_{code}", f"resource={resource}"]
         if channel_index is not None:
             parts.append(f"channel_index={channel_index}")
         if http_status is not None:
             parts.append(f"http_status={http_status}")
+        if reason in GOOGLE_REASONS:
+            parts.append(f"reason={reason}")
         self.safe_summary = " ".join(parts)
         super().__init__(self.safe_summary)
 
@@ -271,7 +274,7 @@ class YouTubeConnector:
                 raise  # Keep quota exhaustion distinct and non-retryable.
             except SourceHTTPError as exc:
                 raise YouTubeSourceError(
-                    "http_error", resource, channel_index, exc.status_code
+                    "http_error", resource, channel_index, exc.status_code, exc.reason
                 ) from None
             except ConnectorError:
                 raise YouTubeSourceError("request_failed", resource, channel_index) from None
@@ -287,7 +290,10 @@ class YouTubeConnector:
         try:
             with self.engine.begin() as connection:
                 # Config is authoritative: removed or disabled entries are not fetched.
-                connection.execute(text("UPDATE core.youtube_channels SET active = false"))
+                connection.execute(
+                    text("UPDATE core.youtube_channels SET active = (handle = ANY(:handles))"),
+                    {"handles": [config.handle for config in configs if config.active]},
+                )
             ids: set[str] = set()
             for channel_index, config in enumerate(configs, start=1):
                 if not config.active:

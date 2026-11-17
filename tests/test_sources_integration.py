@@ -303,3 +303,48 @@ def test_youtube_diagnostic_survives_rollback_without_exposing_response(
     assert key not in str(error.value)
     assert key not in caplog.text
     assert "private" not in caplog.text
+
+
+def test_run_all_auth_failure_is_loud_safe_and_preserves_active_cache(
+    database, monkeypatch, tmp_path, capsys
+):
+    from offscroll.cli import main
+
+    engine, connection = database
+    config = tmp_path / "channels.yaml"
+    config.write_text("channels: [{handle: '@example', category: science}]")
+    key = uuid4().hex
+    monkeypatch.setenv("YOUTUBE_API_KEY", key)
+    monkeypatch.setenv("YOUTUBE_CHANNELS_FILE", str(config))
+    monkeypatch.setenv("OFFSCROLL_SOURCES", "youtube")
+    connection.execute(
+        text(
+            "INSERT INTO core.youtube_channels VALUES ('UCexample', '@example', 'Example', "
+            "'UUexample', 'science', true, clock_timestamp()-interval '2 days')"
+        )
+    )
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(
+            403, json={"error": {"message": key, "errors": [{"reason": "keyInvalid"}]}}
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        monkeypatch.setattr(
+            "offscroll.operations.execute_run",
+            lambda e, source: execute_run(e, source, client=client),
+        )
+        monkeypatch.setattr("offscroll.cli.create_db_engine", lambda _: engine)
+        assert main(["run-all"]) == 1
+    output = capsys.readouterr()
+    assert "reason=keyInvalid" in output.out and "youtube_collection_failed" in output.err
+    assert key not in output.out + output.err and len(calls) == 1
+    status = source_status(engine, ["youtube"])[0]
+    assert status["health"] == "failed" and "keyInvalid" in status["error_summary"]
+    assert (
+        connection.scalar(text("SELECT active FROM core.youtube_channels WHERE handle='@example'"))
+        is True
+    )
+    assert connection.scalar(text("SELECT count(*) FROM raw.api_responses")) == 0

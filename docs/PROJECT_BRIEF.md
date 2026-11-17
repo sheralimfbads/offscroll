@@ -255,3 +255,27 @@ CI green; a real digest generated from live data; a static or deployed site;
 complete docs; ranking, parsing and transform logic well covered by unit tests;
 no secrets anywhere in git history.
 
+
+10. M6 YOUTUBE INCIDENT AND BACKEND HARDENING (owner task, 2026-11-17)
+- Branch m6-youtube-fix from m5-delivery; never push. The owner's later explicit
+  authorization to read local configuration supersedes the no-read rule for this
+  live acceptance only. Load values only inside a redacting subprocess; never
+  print, log, commit, or send credentials/file contents to the model. Application
+  settings still use exported environment variables, without automatic dotenv.
+- Diagnose source/run/channel/raw/item/funnel/digest/export stages before code
+  changes, record numbers and hypotheses in docs/INCIDENT-youtube.md.
+- Repair confirmed causes. Fourteen-day selection is conditional on thin data;
+  this incident has ample seven-day candidates, so keep the isolated seven-day
+  lane and document the decision in ADR 0008's addendum.
+- Add clear empty states and empty-lane funnel warnings, loud auth/quota failures,
+  and read-only doctor: settings presence, DB/schema, source success/freshness,
+  quota, candidates and export consistency. Doctor is nonzero on any problem.
+- Regression tests stay offline; make check and make test-integration must pass.
+- Finish only after authenticated run-all/build/export/doctor succeed and the
+  real export contains videos; credential provision is owner-only if unavailable
+  to the agent. Record exactly who ran live acceptance; never substitute fixtures.
+- Audit idempotency, retry/timeouts, transactions, exit codes and secret-safe logs;
+  record deferred trade-offs. Stop with a five-line root-cause report when done.
+- ADR 0013 amends M3 discovery: tolerate one unavailable daily Wikipedia top list
+  out of seven with a coverage warning; require six. Every accepted article still
+  needs its complete 35-day series. Missing data is never replaced by zero.

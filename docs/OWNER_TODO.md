@@ -1,6 +1,6 @@
 # Owner-only completion and launch steps
 
-Local implementation is complete through M5; PROGRESS.md is the evidence ledger.
+Local implementation is complete through M6; PROGRESS.md is the evidence ledger.
 No branch/tag was pushed, no account/billing/secret was configured, and no live
 site or new remote CI result is claimed. Do these steps in order. Do not paste
 credentials into chat or commands recorded in history.
@@ -12,7 +12,7 @@ Then, from this repository (GitHub CLI authenticated by the owner):
 
 ```bash
 git status --short --branch
-git log --oneline main..m5-delivery
+git log --oneline main..m6-youtube-fix
 git push origin m4-ranking m4-done
 gh pr create --base main --head m4-ranking --title "Add isolated digest ranking and reviewed Gemini summaries" --body "Implements M4 source lanes, retention-safe archives, deterministic summaries and an optional reviewed Gemini adapter. Local validation and policy decisions are recorded in docs/PROGRESS.md and ADRs 0008–0009."
 gh pr checks m4-ranking --watch
@@ -21,11 +21,16 @@ git push origin m5-delivery m5-done
 gh pr create --base main --head m5-delivery --title "Deliver the finite digest site and operational handoff" --body "Adds static and read-only web delivery, filtered backups, disabled automation and portfolio documentation. Local checks, restore and fresh-clone evidence are in docs/PROGRESS.md. Accounts, secrets and publication remain owner actions."
 gh pr checks m5-delivery --watch
 gh pr merge m5-delivery --merge
+git push origin m6-youtube-fix m6-done
+gh pr create --base main --head m6-youtube-fix --title "Repair YouTube exports and harden pipeline diagnostics" --body "Adds export provenance, lane funnels, explicit empty states, safe failures and doctor. A bounded Wikipedia discovery fallback preserves complete article metrics. Live three-source collection, four-video export and green checks are recorded in docs/INCIDENT-youtube.md."
+gh pr checks m6-youtube-fix --watch
+gh pr merge m6-youtube-fix --merge
 ```
 
 Use **merge commits**, not squash or rebase merges, so M5 retains the M4 ancestry
-and milestone tags remain meaningful. Merge M4 first; M5 starts from the tip of
-m4-ranking. If a check fails, fix it before merging. Do not force-push. After both:
+and milestone tags remain meaningful. Merge M4, then M5, then M6; each starts from
+the preceding milestone tip. If a check fails, fix it before merging. Do not
+force-push. After all three:
 
 ```bash
 git fetch origin

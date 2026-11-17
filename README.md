@@ -46,6 +46,16 @@ make collect-public
 make site
 ```
 
+Run `.venv/bin/offscroll doctor` after a full three-source collection/build/export.
+For the keyless quickstart:
+
+```bash
+OFFSCROLL_SOURCES=hackernews,wikipedia .venv/bin/offscroll doctor
+```
+
+Keep test exports in a separate directory: doctor detects artifacts that do not
+match the connected database.
+
 Open `site/index.html`, or run `python3.14 -m http.server 8080 --bind 127.0.0.1
 --directory site` and visit `http://127.0.0.1:8080`. Collection usually takes a
 minute or two; source outages can delay it. The first run uses HN/Wikipedia and
@@ -59,6 +69,7 @@ keep their original credentials; changing shell values does not reset a database
 make check                         # Ruff, strict mypy, offline unit tests
 make test-integration              # disposable/test DATABASE_URL only
 .venv/bin/offscroll status
+.venv/bin/offscroll doctor           # source, lane and export consistency checks
 OFFSCROLL_SOURCES=hackernews,wikipedia .venv/bin/offscroll check-data
 .venv/bin/offscroll build-digest --week 2026-W46
 .venv/bin/offscroll digest --week 2026-W46

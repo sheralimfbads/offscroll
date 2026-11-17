@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import Engine
 
-from offscroll.digests import LANES, read_digest
+from offscroll.digests import EMPTY_LANES, LANES, digest_identity, read_digest
 from offscroll.ranking import DigestError
 
 PACKAGE = Path(__file__).parent
@@ -91,6 +91,7 @@ def render_page(
         date=date,
         count=sum(map(len, lanes.values())),
         assets=asset_prefix,
+        empty_lanes=EMPTY_LANES,
     )
 
 
@@ -113,7 +114,10 @@ def _write_atomic(path: Path, data: str | bytes) -> None:
 def export_site(engine: Engine, output: Path = Path("site")) -> Path:
     if output.is_symlink() or output.resolve() == Path.cwd().resolve():
         raise DigestError("Choose a dedicated non-symlink export directory.")
+    identity = digest_identity(engine)
     lanes = public_lanes(read_digest(engine))
+    if identity != digest_identity(engine):
+        raise DigestError("Digest changed during export; retry export-site.")
     now = datetime.now(UTC)
     output.mkdir(parents=True, exist_ok=True)
     allowed = {"index.html", "digest.json", "style.css", ".nojekyll", "youtube-logo.png"}
@@ -121,7 +125,9 @@ def export_site(engine: Engine, output: Path = Path("site")) -> Path:
         raise DigestError("Export directory contains unrelated files; choose an empty directory.")
     _write_atomic(
         output / "digest.json",
-        json.dumps({"exported_at": now.isoformat(), "lanes": lanes}, ensure_ascii=True),
+        json.dumps(
+            {"exported_at": now.isoformat(), "digest": identity, "lanes": lanes}, ensure_ascii=True
+        ),
     )
     for asset in (PACKAGE / "static").iterdir():
         _write_atomic(output / asset.name, asset.read_bytes())

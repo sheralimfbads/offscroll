@@ -446,3 +446,142 @@ def test_public_export_and_filtered_backup_omit_restricted_data(seeded, monkeypa
     assert "video000000" in sql
     assert path.stat().st_mode & 0o777 == 0o600
     assert "COMMIT;" in sql
+
+
+def test_youtube_funnel_matches_selection_at_each_boundary(seeded):
+    from offscroll.digests import youtube_candidates, youtube_funnel
+    from offscroll.ranking import digest_window
+
+    engine, connection, now = seeded
+    window = digest_window(now)
+    initial = youtube_funnel(connection, window, now)
+    assert initial["total"] == initial["views"] == 8
+    assert initial["unique_channels"] == 7 and initial["selected"] == 4
+    assert initial["removed_unique_channels"] == 1 and initial["removed_selected"] == 3
+    connection.execute(
+        text("UPDATE core.items SET published_at=:old WHERE external_id='video000007'"),
+        {"old": now - timedelta(days=8)},
+    )
+    connection.execute(
+        text(
+            "UPDATE core.items SET metadata=metadata-'privacy_status' WHERE "
+            "external_id='video000006'"
+        )
+    )
+    connection.execute(
+        text(
+            "UPDATE core.items SET metadata=jsonb_set(metadata, '{privacy_status}', "
+            "'\"private\"') WHERE external_id='video000005'"
+        )
+    )
+    connection.execute(
+        text(
+            "UPDATE core.items SET metadata=jsonb_set(metadata, '{embeddable}', 'false') WHERE "
+            "external_id='video000004'"
+        )
+    )
+    connection.execute(
+        text(
+            "UPDATE core.item_snapshots SET views=NULL WHERE item_id=(SELECT id FROM core.items "
+            "WHERE external_id='video000003')"
+        )
+    )
+    result = youtube_funnel(connection, window, now)
+    for stage in ("age", "status", "public", "embeddable", "views"):
+        assert result["removed_" + stage] == 1
+    assert result["selected"] == 2
+    assert result["selected"] == len(youtube_candidates(connection, window, now, 4))
+
+
+def test_empty_youtube_build_warns_with_funnel(database, caplog):
+    import logging
+
+    engine, _ = database
+    caplog.set_level(logging.WARNING)
+    build_digest(engine)
+    assert "event=empty_lane lane=youtube" in caplog.text
+    assert '"total": 0' in caplog.text and '"selected": 0' in caplog.text
+
+
+def test_doctor_detects_wrong_export_stale_html_and_failed_source(seeded, monkeypatch, tmp_path):
+    import json
+
+    from offscroll.config import SourceSettings
+    from offscroll.delivery import export_site
+    from offscroll.diagnostics import doctor
+
+    engine, connection, now = seeded
+    # A successful fixture run must have a finish timestamp, just like a real run.
+    connection.execute(
+        text("UPDATE raw.ingest_runs SET finished_at=clock_timestamp() WHERE status='succeeded'")
+    )
+    build_digest(engine, now=now)
+    export_site(engine, tmp_path / "site")
+    settings = SourceSettings(
+        youtube_api_key="synthetic-key", offscroll_sources="hackernews,wikipedia,youtube"
+    )
+    assert doctor(engine, settings, tmp_path / "site")["ok"] is True
+    artifact_path = tmp_path / "site" / "digest.json"
+    artifact = json.loads(artifact_path.read_text())
+    artifact["lanes"]["youtube"] = []
+    artifact_path.write_text(json.dumps(artifact))
+    bad_export = doctor(engine, settings, tmp_path / "site")
+    assert bad_export["ok"] is False
+    assert any(c["check"] == "export" and not c["ok"] for c in bad_export["checks"])
+    export_site(engine, tmp_path / "site")
+    (tmp_path / "site" / "index.html").write_text("old HTML")
+    assert doctor(engine, settings, tmp_path / "site")["ok"] is False
+    export_site(engine, tmp_path / "site")
+    connection.execute(
+        text(
+            "UPDATE raw.ingest_runs SET status='failed', error_summary='youtube_http_error "
+            "resource=videos http_status=403 reason=keyInvalid' WHERE source='youtube'"
+        )
+    )
+    report = doctor(engine, settings, tmp_path / "site")
+    assert report["ok"] is False
+    assert any(c["check"] == "source:youtube" and not c["ok"] for c in report["checks"])
+
+
+def test_doctor_stops_before_queries_on_old_schema(database, monkeypatch, tmp_path):
+    from offscroll.config import SourceSettings
+    from offscroll.diagnostics import doctor
+
+    engine, connection = database
+    connection.execute(text("UPDATE alembic_version SET version_num='0003'"))
+    result = doctor(engine, SourceSettings(offscroll_sources="hackernews"), tmp_path)
+    assert result["ok"] is False
+    assert result["checks"][-1]["check"] == "migrations"
+    assert result["checks"][-1]["actual"] == ["0003"]
+
+
+def test_funnel_explains_missing_snapshots_staleness_and_blank_channels(seeded):
+    from offscroll.digests import youtube_candidates, youtube_funnel
+    from offscroll.ranking import digest_window
+
+    engine, connection, now = seeded
+    connection.execute(
+        text(
+            "DELETE FROM core.item_snapshots WHERE item_id="
+            "(SELECT id FROM core.items WHERE external_id='video000007')"
+        )
+    )
+    connection.execute(
+        text(
+            "UPDATE core.item_snapshots SET captured_at=:old WHERE item_id="
+            "(SELECT id FROM core.items WHERE external_id='video000006')"
+        ),
+        {"old": now - timedelta(days=31)},
+    )
+    connection.execute(
+        text(
+            "UPDATE core.items SET metadata=jsonb_set(metadata, '{channel_id}', '\"\"') "
+            "WHERE external_id='video000005'"
+        )
+    )
+    window = digest_window(now)
+    counts = youtube_funnel(connection, window, now)
+    assert (
+        counts["removed_snapshot"] == counts["removed_freshness"] == counts["removed_channel"] == 1
+    )
+    assert counts["selected"] == len(youtube_candidates(connection, window, now, 4)) == 4

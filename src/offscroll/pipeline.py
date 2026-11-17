@@ -13,19 +13,61 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from offscroll.connectors import get_connector
 from offscroll.connectors._base import Connector, ConnectorError, RawResponse
-from offscroll.connectors._http import QuotaError
+from offscroll.connectors._http import GOOGLE_REASONS, QuotaError
 from offscroll.connectors.youtube import MissingKeyError, YouTubeSourceError
 from offscroll.retention import purge_expired
 
 logger = logging.getLogger(__name__)
 
 
+def safe_run_error(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return "unclassified_error"
+    parts = value.split()
+    codes = {
+        "source_run_failed",
+        "source_error",
+        "database_error",
+        "transform_error",
+        "missing_youtube_api_key",
+        "youtube_quota_exceeded",
+        "youtube_http_error",
+        "youtube_request_failed",
+        "youtube_invalid_response",
+        "youtube_handle_unresolved",
+        "youtube_invalid_channel_metadata",
+        "youtube_invalid_upload_metadata",
+    }
+    if not parts or parts[0] not in codes:
+        return "unclassified_error"
+    safe = [parts[0]]
+    for part in parts[1:]:
+        key, _, detail = part.partition("=")
+        if (
+            (key == "resource" and detail in {"channels", "playlistItems", "videos"})
+            or (key == "reason" and detail in GOOGLE_REASONS)
+            or (
+                key in {"channel_index", "http_status"}
+                and detail.isascii()
+                and detail.isdecimal()
+                and len(detail) <= 3
+            )
+        ):
+            safe.append(part)
+    return " ".join(safe)
+
+
 class PipelineError(Exception):
     """A safe message that can be shown without exposing underlying exceptions."""
 
-    def __init__(self, message: str, *, run_id: int | None = None) -> None:
+    def __init__(
+        self, message: str, *, run_id: int | None = None, code: str = "source_run_failed"
+    ) -> None:
         super().__init__(message)
         self.run_id = run_id
+        self.code = safe_run_error(code) or "source_run_failed"
 
 
 @dataclass
@@ -240,7 +282,9 @@ def execute_run(
     )
     if failure:
         raise PipelineError(
-            f"Run {run_id} failed ({failure}); see its safe error_summary.", run_id=run_id
+            f"Run {run_id} failed ({failure}); see its safe error_summary.",
+            run_id=run_id,
+            code=failure,
         )
     return summary
 

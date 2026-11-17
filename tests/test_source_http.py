@@ -70,3 +70,48 @@ def test_transient_failures_stop_after_three_attempts(monkeypatch, failure):
     ):
         request_json(client, "https://example.org")
     assert len(requests) == 3
+
+
+@pytest.mark.parametrize(
+    "reason", ["keyInvalid", "accessNotConfigured", "API_KEY_SERVICE_BLOCKED", "SERVICE_DISABLED"]
+)
+def test_google_error_reasons_are_allowlisted_and_never_echo_metadata(reason):
+    from offscroll.connectors._http import SourceHTTPError
+
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(
+            403,
+            json={
+                "error": {
+                    "message": "PRIVATE KEY MESSAGE",
+                    "details": [{"reason": reason, "metadata": {"key": "PRIVATE KEY VALUE"}}],
+                }
+            },
+        )
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(respond)) as client,
+        pytest.raises(SourceHTTPError) as error,
+    ):
+        request_json(client, "https://example.org")
+    assert error.value.reason == reason and len(calls) == 1
+    assert "PRIVATE" not in str(error.value)
+
+
+@pytest.mark.parametrize("header", ["NaN", "inf", "-inf"])
+def test_nonfinite_retry_after_never_sleeps_or_retries(monkeypatch, header):
+    pauses = []
+    monkeypatch.setattr("offscroll.connectors._http.time.sleep", pauses.append)
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _: httpx.Response(429, headers={"Retry-After": header})
+            )
+        ) as client,
+        pytest.raises(ConnectorError, match="invalid retry delay"),
+    ):
+        request_json(client, "https://example.org")
+    assert pauses == []

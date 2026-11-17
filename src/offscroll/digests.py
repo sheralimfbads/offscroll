@@ -1,6 +1,7 @@
 """Build and read atomic, replaceable digests with strictly separate source lanes."""
 
 import json
+import logging
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,22 +24,86 @@ from offscroll.summaries import Summarizer, cache_key, configured_summarizer
 
 LANES = {"hackernews": "Hacker News", "wikipedia": "Wikipedia", "youtube": "YouTube"}
 
-# The ratio exists only in ORDER BY. It is never returned to Python, stored,
-# normalized, combined with another source, or included in presentation data.
-YOUTUBE_CANDIDATES = text("""
-    SELECT id, external_id, metadata->>'channel_id' AS channel_id
-    FROM marts.latest_item_metrics
-    WHERE source = 'youtube'
-      AND published_at >= :start AND published_at < :end AND published_at <= :now
-      AND published_at >= :now - interval '7 days'
-      AND captured_at > :now - interval '30 days' AND captured_at <= :now
-      AND last_seen_at > :now - interval '30 days' AND last_seen_at <= :now
-      AND metadata->>'privacy_status' = 'public'
-      AND metadata->'embeddable' = 'true'::jsonb
-      AND metadata->>'channel_id' IS NOT NULL AND views IS NOT NULL
-    ORDER BY views / greatest(extract(epoch FROM (:now - published_at)) / 86400.0, 1) DESC,
-             published_at DESC, external_id
-""")
+logger = logging.getLogger(__name__)
+EMPTY_LANES = {
+    "hackernews": "No new Hacker News stories in this edition.",
+    "wikipedia": "No eligible Wikipedia topics in this edition.",
+    "youtube": (
+        "No new videos from your channels this week. "
+        "Collection may be unavailable; check source status."
+    ),
+}
+
+# One predicate list drives selection and diagnostics; counts cannot drift from eligibility.
+YOUTUBE_RULES = [
+    (
+        "age",
+        "published_at >= :start AND published_at < :end AND published_at <= :now "
+        "AND published_at >= :now - interval '7 days'",
+    ),
+    ("snapshot", "captured_at IS NOT NULL"),
+    (
+        "freshness",
+        "captured_at > :now - interval '30 days' AND captured_at <= :now "
+        "AND last_seen_at > :now - interval '30 days' AND last_seen_at <= :now",
+    ),
+    (
+        "status",
+        "metadata->>'privacy_status' IS NOT NULL "
+        "AND jsonb_typeof(metadata->'embeddable') = 'boolean'",
+    ),
+    ("public", "metadata->>'privacy_status' = 'public'"),
+    ("embeddable", "metadata->'embeddable' = 'true'::jsonb"),
+    ("channel", "nullif(metadata->>'channel_id', '') IS NOT NULL"),
+    ("views", "views IS NOT NULL"),
+]
+# The ratio exists only in ORDER BY, never returned, stored or rendered.
+YOUTUBE_CANDIDATES = text(
+    # S608: only code-owned predicates are interpolated; dates remain bound parameters.
+    "SELECT id, external_id, metadata->>'channel_id' AS channel_id "  # noqa: S608
+    "FROM marts.latest_item_metrics WHERE source = 'youtube' AND kind = 'video' AND "
+    + " AND ".join(f"({predicate})" for _, predicate in YOUTUBE_RULES)
+    + " ORDER BY views / greatest(extract(epoch FROM (:now - published_at)) / 86400.0, 1) DESC, "
+    "published_at DESC, external_id"
+)
+
+
+def youtube_funnel(
+    connection: Connection, window: Window, now: datetime, limit: int = 4
+) -> dict[str, int]:
+    """Operational rejection counts only; no engagement ratio leaves SQL."""
+    stages = ["total"]
+    queries = [
+        "total AS (SELECT i.id, i.published_at, i.last_seen_at, i.metadata, "
+        "m.captured_at, m.views FROM core.items i "
+        "LEFT JOIN marts.latest_item_metrics m ON m.id = i.id "
+        "WHERE i.source = 'youtube' AND i.kind = 'video')"
+    ]
+    for stage, predicate in YOUTUBE_RULES:
+        # S608: stage names and predicates come exclusively from YOUTUBE_RULES above.
+        queries.append(f"{stage} AS (SELECT * FROM {stages[-1]} WHERE {predicate})")  # noqa: S608
+        stages.append(stage)
+    # S608: this composes only the fixed CTEs above; no user or source text is SQL.
+    query = (
+        "WITH "  # noqa: S608
+        + ", ".join(queries)
+        + " SELECT "
+        + ", ".join(f"(SELECT count(*) FROM {stage}) AS {stage}" for stage in stages)  # noqa: S608
+        + ", (SELECT count(DISTINCT metadata->>'channel_id') FROM views) AS unique_channels"
+    )
+    row = (
+        connection.execute(text(query), {"start": window.start, "end": window.end, "now": now})
+        .mappings()
+        .one()
+    )
+    counts = {key: int(value) for key, value in row.items()}
+    counts["selected"] = min(limit, counts["unique_channels"])
+    for before, after in zip(
+        stages + ["unique_channels"], stages[1:] + ["unique_channels", "selected"], strict=True
+    ):
+        counts["removed_" + after] = counts[before] - counts[after]
+    return counts
+
 
 INSERT_DIGEST_ITEM = text("""
     INSERT INTO core.digest_items
@@ -205,8 +270,21 @@ def build_digest(
         connection.execute(
             text("DELETE FROM core.digest_items WHERE digest_id = :id"), {"id": digest_id}
         )
-        lanes = select_lanes(
-            rank_candidates(shared_candidates(connection, window, now), config), config
+        candidates = shared_candidates(connection, window, now)
+        lanes = select_lanes(rank_candidates(candidates, config), config)
+        for lane, entries in lanes.items():
+            if not entries:
+                logger.warning(
+                    "event=empty_lane lane=%s candidates=%s selected=0",
+                    lane,
+                    sum(item.source == lane for item in candidates),
+                )
+        funnel = youtube_funnel(connection, window, now, config.youtube_slots)
+        log = logger.warning if funnel["selected"] == 0 else logger.info
+        log(
+            "event=%s lane=youtube funnel=%s",
+            "empty_lane" if funnel["selected"] == 0 else "lane_funnel",
+            json.dumps(funnel, sort_keys=True),
         )
         for lane, entries in lanes.items():
             for rank, row in enumerate(entries, 1):
@@ -255,6 +333,24 @@ def build_digest(
                 },
             )
     return digest_id
+
+
+def digest_identity(engine: Engine) -> dict[str, object]:
+    """Nonsecret provenance; never publish database host, name or credentials."""
+    with engine.connect() as connection:
+        row = (
+            connection.execute(
+                text(
+                    "SELECT id, generated_at FROM core.digests "
+                    "ORDER BY generated_at DESC, id DESC LIMIT 1"
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if row is None:
+            raise DigestError("No digest found. Run offscroll build-digest first.")
+        return {"id": row["id"], "generated_at": row["generated_at"].isoformat()}
 
 
 def read_digest(
@@ -353,7 +449,7 @@ def render_digest(lanes: dict[str, list[dict[str, object]]]) -> str:
         lines.append(label)
         lines.extend(json.dumps(entry, ensure_ascii=True) for entry in lanes[lane])
         if not lanes[lane]:
-            lines.append("No eligible items.")
+            lines.append(EMPTY_LANES[lane])
         lines.append("")
     lines.append("That's everything for this week")
     return "\n".join(lines)

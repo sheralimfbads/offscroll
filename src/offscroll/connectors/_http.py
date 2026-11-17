@@ -1,6 +1,7 @@
 """Small synchronous request helper for the M3 connectors; never expose responses."""
 
 import logging
+import math
 import secrets
 import time
 from collections.abc import Callable
@@ -16,6 +17,61 @@ USER_AGENT = "OffscrollBot/0.1 (+https://github.com/sheralimfbads/offscroll/issu
 logger = logging.getLogger(__name__)
 
 
+GOOGLE_REASONS = frozenset(
+    {
+        "quotaExceeded",
+        "dailyLimitExceeded",
+        "keyInvalid",
+        "keyExpired",
+        "accessNotConfigured",
+        "ipRefererBlocked",
+        "forbidden",
+        "API_KEY_INVALID",
+        "API_KEY_EXPIRED",
+        "API_KEY_SERVICE_BLOCKED",
+        "API_KEY_HTTP_REFERRER_BLOCKED",
+        "API_KEY_IP_ADDRESS_BLOCKED",
+        "SERVICE_DISABLED",
+    }
+)
+
+
+def google_error_reason(response: httpx.Response) -> str | None:
+    """Return only an allowlisted reason, never messages, metadata, URLs or keys."""
+    try:
+        error = response.json()["error"]
+        reasons = [
+            entry.get("reason")
+            for field in ("errors", "details")
+            for entry in error.get(field, [])
+            if isinstance(entry, dict)
+        ]
+        for value in reasons:
+            if isinstance(value, str) and value in GOOGLE_REASONS:
+                return value
+    except ValueError, KeyError, TypeError, AttributeError:
+        pass
+    return None
+
+
+def retry_delay(response: httpx.Response | None, default: float) -> float:
+    delay = default
+    if response is not None and (header := response.headers.get("Retry-After")):
+        try:
+            requested = float(header)
+        except ValueError:
+            with suppress(ValueError, TypeError, OverflowError):
+                requested = (parsedate_to_datetime(header) - datetime.now(UTC)).total_seconds()
+                delay = max(delay, requested)
+        else:
+            if not math.isfinite(requested):
+                raise ConnectorError("Source returned an invalid retry delay.")
+            delay = max(delay, requested)
+    if not math.isfinite(delay) or delay > 60:
+        raise ConnectorError("Source requests a long retry delay; try again later.")
+    return delay
+
+
 class QuotaError(ConnectorError):
     """Quota exhaustion is safe to report and must not be retried."""
 
@@ -23,7 +79,8 @@ class QuotaError(ConnectorError):
 class SourceHTTPError(ConnectorError):
     """Expose only a numeric HTTP status, never the response message or URL."""
 
-    def __init__(self, status_code: int) -> None:
+    def __init__(self, status_code: int, reason: str | None = None) -> None:
+        self.reason = reason if reason in GOOGLE_REASONS else None
         self.status_code = status_code
         super().__init__(f"Source request rejected (HTTP {status_code}).")
 
@@ -62,33 +119,14 @@ def request_json(
                 if not isinstance(payload, dict):
                     raise ConnectorError("Source returned an invalid response object.")
                 return payload
-            if response.status_code == 403:
-                # Inspect only Google's structured reason; never surface its message/body.
-                try:
-                    errors = response.json()["error"]["errors"]
-                    quota = any(e.get("reason") == "quotaExceeded" for e in errors)
-                except ValueError, KeyError, TypeError, AttributeError:
-                    quota = False
-                if quota:
-                    raise QuotaError("YouTube quotaExceeded; wait for the next quota day.")
+            api_reason = google_error_reason(response)
+            if api_reason in {"quotaExceeded", "dailyLimitExceeded"}:
+                raise QuotaError(f"YouTube {api_reason}; wait for the next quota day.")
             if response.status_code != 429 and not 500 <= response.status_code < 600:
-                raise SourceHTTPError(response.status_code)
+                raise SourceHTTPError(response.status_code, api_reason)
             reason = f"http_{response.status_code}"
         if attempt < 2:
-            delay = 5 * 2**attempt + secrets.randbelow(250) / 1000
-            if response is not None and (retry_after := response.headers.get("Retry-After")):
-                try:
-                    delay = max(delay, float(retry_after))
-                except ValueError:
-                    with suppress(ValueError, TypeError, OverflowError):
-                        deadline = parsedate_to_datetime(retry_after)
-                        delay = max(
-                            delay,
-                            (deadline - datetime.now(UTC)).total_seconds(),
-                        )
-            # Stop rather than ignoring a long server-requested pause.
-            if delay > 60:
-                raise ConnectorError("Source requests a long retry delay; try again later.")
+            delay = retry_delay(response, 5 * 2**attempt + secrets.randbelow(250) / 1000)
             logger.warning("event=retry attempt=%s reason=%s", attempt + 1, reason)
             time.sleep(delay)
     raise ConnectorError("Source request failed after 3 attempts.")

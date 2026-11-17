@@ -270,3 +270,49 @@ turns source markup into harmless text; **CSP** constrains browser resource load
 **artifact** is a workflow-produced file bundle; **repeatable read** gives backup
 data one consistent database snapshot; **restore rehearsal** tests recovery before
 an incident. See RUNBOOK.md for operational commands and PROGRESS.md for evidence.
+
+## M6: Diagnose the pipeline before changing its filters
+
+An empty page does not tell us where data disappeared. We first counted records at
+collection, storage, eligibility, saved-digest and exported-file stages. The owner
+DB already held four videos; site/ came from a different test database. Fixing the
+ranking window would have hidden that distinction instead of repairing delivery.
+
+`digests.youtube_funnel` uses the same fixed predicates as selection, then reports
+how many rows each step removes. `operations.source_status` adds last successful
+run and freshness; safe Google error reasons survive through `PipelineError` into
+run-all output. `diagnostics.doctor` checks settings presence, schema, source health,
+quota, lanes and export identity without making an API call or writing database rows.
+`delivery.export_site` saves digest ID/time alongside public data and detects a
+concurrent rebuild. Doctor also compares HTML, so fresh JSON beside stale HTML fails.
+
+Worked example: 104 stored videos → 73 within seven days → 71 with known status →
+70 public/embeddable candidates → 18 channels → four slots. An export containing
+zero videos cannot match that saved digest. Re-exporting repairs the artifact;
+refreshing source data supplies missing status without inventing it. A failed
+refresh is visible and does not silently deactivate configured cached channels.
+
+Five interview questions:
+1. **Why count each stage?** It separates absent data from rejected data and wrong
+   output, reducing speculative fixes.
+2. **Why share predicates?** A diagnostic count must describe the actual selector,
+   not a subtly different copy of its rules.
+3. **Why not test keys in doctor?** A read-only local check should not consume API
+   quota; run-all performs authenticated collection and doctor checks its outcome.
+4. **Why keep unknown errors generic?** Provider messages can contain secrets;
+   fixed reason codes are useful without copying arbitrary text.
+5. **Is a successful export enough?** It proves files were written, not that they
+   represent the intended database. Provenance and payload comparison catch that.
+
+Glossary: **funnel** is the sequence of candidate counts after filters;
+**provenance** identifies which saved digest produced an artifact; **allowlist**
+permits only known safe diagnostic fields; **Retry-After** is the server's requested
+pause before another attempt. Existing transactional/idempotent storage remains;
+failed API fetches retain safe run errors, not their raw error bodies.
+
+Live acceptance also found a missing Wikipedia daily discovery list. Discovery
+decides which articles to investigate; their separate 35-day histories produce the
+actual metrics. We now tolerate one missing discovery day with a warning, requiring
+six available lists. We still reject incomplete histories and never fill gaps with
+zero. This trades some topic coverage for availability while preserving exact counts
+for accepted topics (ADR 0013).

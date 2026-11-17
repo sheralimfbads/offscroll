@@ -19,6 +19,7 @@ in PROGRESS.md.
 | YouTube: durable daily quota, safe errors | `quota.py`, connector pre-request reservation | `test_sources_integration.py` quota/rollback/diagnostic tests; `test_youtube_connector.py` |
 | Wikipedia: official pageview API, descriptive contact User-Agent, serial pacing | `connectors/_http.py`, `connectors/wikipedia.py`; <=60 requests/min before latency | `test_wikipedia.py` serial/bounded fetch; HTTP request tests |
 | Wikipedia: complete 35-day input, no invented missing values | pure parse rejects incomplete/invalid series; baseline explicitly unknown if zero | `test_wikipedia.py` series and zero-baseline tests |
+| Wikipedia: bounded discovery coverage (ADR 0013) | require six of seven daily top lists; warn on one 404; all other failures propagate | `test_wikipedia.py` missing-list, auth, pacing and article-history failure tests |
 | Wikipedia: attribution and 90-day raw policy | source notes, retention.py; CC0 pageview attribution; footer links Wikipedia and CC BY-SA article context | source/retention integration tests; template tests. No article extracts currently fetched |
 | Hacker News: public API, polite bounded retries/paging, contact User-Agent | `connectors/hackernews.py`, `_http.py` | `test_hackernews.py` params, pacing, retries, truncation |
 | Hacker News: originals/discussion links, no copied articles/images | validated URL fields, escaped delivery, source context templates | HN URL/parser tests; `test_delivery.py`; pipeline integration |
@@ -37,3 +38,11 @@ can become stale between requests. Pageviews and agreement are attention/context
 not proof. Free Gemini terms are not satisfied merely by a valid key or offline
 batching; public delivery therefore uses templates. Static YouTube link-only
 publication is intentionally less rich to avoid unenforceable CDN retention.
+
+M6 adds `diagnostics.py` and shared `youtube_funnel` predicates: doctor is read-only,
+reports only boolean credential presence, and checks saved/exported lane identity.
+Regression coverage in test_diagnostics.py, test_digests_integration.py and
+test_sources_integration.py covers wrong exports, stale HTML, NULL status,
+rejection counts, auth failures, and preserved active-channel cache. Error reasons
+are allowlisted in connectors/_http.py; remote messages/metadata never reach logs.
+The seven-day lane remains unchanged; see ADRs 0008 (addendum) and 0012.
