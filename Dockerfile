@@ -1,10 +1,10 @@
-FROM python:3.14.5-slim-bookworm AS builder
+FROM python:3.15.2-slim-bookworm AS builder
 WORKDIR /build
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN python -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir .
 
-FROM python:3.14.5-slim-bookworm AS runtime
+FROM python:3.15.2-slim-bookworm AS runtime
 RUN useradd --create-home --uid 10001 offscroll
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
