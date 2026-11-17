@@ -11,8 +11,11 @@ from offscroll.connectors._http import QuotaError
 class YouTubeQuota:
     engine: Engine
     units: int = 0
+    limit: int = 7999
 
     def reserve(self) -> None:
+        if self.units >= self.limit:
+            raise QuotaError("YouTube per-run request budget reached; no request sent.")
         # Separate transaction: failed runs and concurrent workers still consume quota.
         with self.engine.begin() as connection:
             reserved = connection.execute(

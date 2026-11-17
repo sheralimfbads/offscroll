@@ -250,7 +250,7 @@ class YouTubeConnector:
         if self.engine is None:
             raise ConnectorError("YouTube collection requires database-backed quota accounting.")
         configs = load_channels(self.settings.youtube_channels_file)
-        quota = YouTubeQuota(self.engine)
+        quota = YouTubeQuota(self.engine, limit=self.settings.youtube_run_limit)
         pages: list[RawResponse] = []
         now = datetime.now(UTC)
 

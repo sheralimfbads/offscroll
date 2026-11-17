@@ -109,8 +109,8 @@ def fetch_setup(tmp_path, monkeypatch):
     class Quota:
         units = 0
 
-        def __init__(self, engine):
-            pass
+        def __init__(self, engine, *, limit):
+            assert limit == settings.youtube_run_limit
 
         def reserve(self):
             self.units += 1
