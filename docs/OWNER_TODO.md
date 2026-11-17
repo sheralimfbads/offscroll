@@ -125,3 +125,45 @@ source links, attribution and the finite ending. Capture a real screenshot and
 replace the README placeholder. Automated HTML tests do not replace this visual
 check. Check there are no tracking requests, copied YouTube metadata, Gemini prose
 or secrets in the public JSON. Keep the policy review/date current.
+
+## M7 launch: recommended path (supersedes sections 3–5 for this release)
+
+The release candidate adds the editorial mobile UI and a disposable-database
+edition workflow. It needs **only the existing YouTube key**, not a hosted database
+account or DATABASE_URL secret. Standard public-repository Actions and GitHub Pages
+are the free-first target; no payment/card/billing change is part of this release.
+
+After reviewing the real screenshots, authorize or perform the following once:
+
+1. Push M4–M7 branches/tags and merge the milestone PRs in order with merge commits,
+   requiring green checks. M7's branch is m7-product-launch. No force push.
+2. Set main as default branch (the connected repository currently reports
+   m1-postgres-infrastructure), and select Actions as Pages source.
+3. Store the existing YOUTUBE_API_KEY as the repository secret using hidden input
+   or a memory-only stdin transfer. Never paste it in chat or an argument.
+4. Enable ENABLE_EDITIONS only, dispatch edition.yml, verify build/doctor/deploy,
+   and open the returned HTTPS URL on the phone. The cadence is Mon/Wed/Fri 08:17
+   Asia/Tashkent. The earlier ENABLE_PIPELINE and ENABLE_PAGES paths stay off.
+
+```bash
+git push origin m7-product-launch
+gh pr create --base main --head m7-product-launch --title "Launch Offscroll's editorial reading experience" --body "Adds responsive source sections, local reading controls, consent-based official video players and a checked free-first recurring Pages workflow. Validation and trade-offs are recorded in PROGRESS.md and ADRs 0014–0015."
+gh pr checks m7-product-launch --watch
+gh pr merge m7-product-launch --merge
+gh repo edit sheralimfbads/offscroll --default-branch main
+```
+
+Do not run these commands before the earlier M4/M5/M6 merges. Use the GitHub Pages Settings screen for selecting Actions. Then:
+
+```bash
+gh secret set YOUTUBE_API_KEY
+gh variable set ENABLE_EDITIONS --body true
+gh workflow run edition.yml --ref main
+gh run list --workflow edition.yml --limit 5
+```
+
+Read the YouTube policy links before public launch. License selection remains an
+owner decision. Browser screenshots and automated accessibility checks are now
+included; still inspect the published player and the phone's Add to Home Screen
+experience. Cloud CI, the actual deployment URL and remote execution must be
+recorded after they happen; local rehearsal is not a deployment claim.

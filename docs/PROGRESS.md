@@ -1,12 +1,13 @@
 # Offscroll progress
 
-Last resume check: 2026-11-17 (Asia/Tashkent). M6 incident task authorized.
+Last resume check: 2026-11-17 (Asia/Tashkent). M7 product/launch authorized.
 M4 and M5 are complete locally: m4-done at af171fc, m5-done on m5-delivery.
 Fresh-clone, container, backup/restore and local checks pass. No pushes or public
 deployment occurred. M6 is complete locally on m6-youtube-fix: 201 unit and 39
 integration tests pass; authenticated collection, build, real four-video export
 and doctor are green. See INCIDENT-youtube.md. Other launch steps remain
-in [OWNER_TODO.md](OWNER_TODO.md).
+in [OWNER_TODO.md](OWNER_TODO.md). M7 on m7-product-launch is implemented and
+locally validated; remote release authorization/activation is pending.
 Scope and working rules: [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 The brief's M4 section contains the owner's 2026-11-16 lane amendment; its original
 mission date remains historical. Use the date above for this resume check.
@@ -68,7 +69,8 @@ The owner authorized M3 after merging M2 to main at `b9c906d`.
 
 ## Repository state and evidence
 
-- Current branch: `m6-youtube-fix`, created from M5 tip `7f629df`.
+- Current branch: `m7-product-launch`, created from M6 tip `e9ea0f5`.
+- M6 branch/tag remain at `e9ea0f5`, descended from M5 tip `7f629df`.
 - M5 branch/tag remain at `7f629df`; m5-delivery starts at M4 tip `af171fc`.
 - M4 branch/tag remain at `af171fc`; M3 main merge is `35429cb`.
 - This implementation turn began clean at preflight commit `b90ef24`. Local and
@@ -514,3 +516,65 @@ remains visible; no tests/lint rules or CI checks were weakened. Full reachable 
 history secret scan reports zero findings (reviewed synthetic fixture exception
 from M5 unchanged). No new dependency or schema migration. m6-done marks this
 closeout; nothing was pushed. The five-line report is in INCIDENT-youtube.md.
+
+## M7 product release candidate (2026-11-17)
+
+Owner choices: calm editorial UI; Monday/Wednesday/Friday editions for phone use.
+ADR 0014 accepts the progressive reading experience and consent-based official
+YouTube players; ADR 0015 accepts free-first Pages publication from disposable
+PostgreSQL with a conservative workflow-history quota budget. These are the M7
+decisions-log entries. Existing source isolation, score/metadata restrictions,
+retention, validation and template-only public summaries remain intact.
+
+Implemented: responsive typography/layout, source navigation, light/dark choice,
+browser-local saves/read progress, saved view, empty/stale states, original app
+icons/home-screen manifest, public privacy/methodology, honest generation dates,
+web rebuild-race rejection, and doctor comparison of all public assets. No remote
+fonts/analytics; no YouTube request before explicit player loading. Source text
+stays escaped. The core edition works without JavaScript.
+
+New edition.yml targets 08:17 Asia/Tashkent Mon/Wed/Fri, gated by ENABLE_EDITIONS
+and main. It uses a disposable PostgreSQL service, existing collection/ranking,
+export/doctor, and deploys only after success. No remote DB secret or Gemini key.
+A 200-request run cap plus conservative GitHub workflow history prevents fresh DBs
+from silently resetting the cloud budget. Failures retain the previous live page.
+The persistent local workflow and database remain available independently.
+
+Validation evidence:
+- make check: 214 offline unit tests, strict mypy on 23 modules, Ruff.
+- make test-integration: 39 tests via scripts/check_postgres.py in a disposable
+  PostgreSQL 18 container, removed afterward; owner DB untouched.
+- Browser: 12 tests across desktop/mobile, including WCAG A/AA axe checks in both
+  themes, 320px layout, storage failure/expiry, no-JS reading, saved/read controls,
+  and no third-party request until explicit player consent. The measured overflow
+  from min-height plus aspect-ratio was fixed by explicitly bounding player width.
+- Real owner export: 6 HN / 5 Wikipedia / 4 YouTube, doctor green. Its existing
+  database container was stopped and was restarted without changing the volume.
+- Fresh cloud-style live rehearsal completed 2026-11-17 08:41 Asia/Tashkent: HN 629,
+  Wikipedia 45 accepted / 15 incomplete candidates rejected, YouTube 96 accepted.
+  All seven Wikipedia discovery lists succeeded. YouTube spent 52 units; funnel
+  96 total → 73 recent/public/embeddable → 19 channels → 4 selected. Build/export
+  and every doctor check passed; public digest 6/5/4. Output stays separately in
+  build/cloud-rehearsal/site; the test DB was removed. No Gemini request was made.
+- Real desktop/mobile captures are in docs/images and README. Browser tests use
+  separate clearly synthetic fixtures and never overwrite site/.
+- Dev-only dependencies: Playwright for real browser regressions; axe for automated
+  accessibility; Prettier for readable and checked frontend code. No new runtime
+  dependency or migration. Existing warning about Starlette TestClient remains.
+
+Skeptical self-review — three material risks:
+1. Free scheduling has delays/inactivity limits and API outages. The generation
+   date/stale notice is honest; deployment fails closed and retains the prior page.
+2. Cloud quota history must not be deleted, and other clients sharing the key are
+   outside its ledger. Use a dedicated project/key, or a persistent quota DB when
+   shared usage/history becomes a requirement. Cold builds do not retain history.
+3. YouTube ordering-policy ambiguity remains; players introduce Google processing
+   only after an explicit choice. Regional/deleted videos can fail; original links
+   remain. Local preferences do not sync; accessibility checks are not a full audit.
+
+Release boundary: no push, merge, secret transfer, Pages configuration or schedule
+activation has occurred. Connected GitHub metadata reports main at M3 35429cb and
+the default branch still m1-postgres-infrastructure; Pages is not configured or
+not available. The complete candidate must be reviewed before the owner explicitly
+supersedes prior never-push/owner-only launch rules. All code and local verification
+are ready; remote CI, the public URL and actual edition execution remain to prove.

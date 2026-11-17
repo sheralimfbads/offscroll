@@ -71,3 +71,23 @@ check-data, safe run records and nonzero CLI exit codes. Checks cannot establish
 truth or complete coverage. Run purge daily, keep filtered backups at most seven
 days, rehearse restore, and monitor the workflow after the owner enables it.
 See [RUNBOOK](RUNBOOK.md), [COMPLIANCE](COMPLIANCE.md), and ADRs 0008–0011.
+
+## M7 public edition path
+
+```mermaid
+flowchart LR
+  Schedule[Mon / Wed / Fri Actions] --> Guard[Conservative run-history quota budget]
+  Guard --> Temp[Disposable PostgreSQL + existing Python collectors]
+  Temp --> Rank[Existing isolated source lanes]
+  Rank --> Check[Export + doctor]
+  Check --> Pages[GitHub Pages: static HTML / CSS / JS / JSON]
+  Pages --> Phone[Phone browser / home-screen shortcut]
+  Phone --> Local[Local saves / read marks / appearance]
+  Phone -->|Explicit Load player choice| YouTube[Official privacy-enhanced player]
+```
+
+The server never receives reading preferences. No page request invokes an LLM or
+collector. JavaScript is optional for core reading. The public bundle contains no
+source credentials or copied YouTube metadata. Failed cloud builds keep the last
+successful deployment. The existing local persistent Postgres/FastAPI path remains
+available; this cloud path does not expose it or require a paid database.
